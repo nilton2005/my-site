@@ -5,12 +5,12 @@ interface Props {
   articulo: Articulo;
 }
 const { articulo } = Astro.props;
-const { titulo, descripcion, fecha, serie } = articulo.data;
+const { titulo, descripcion, fecha, serie, idioma } = articulo.data;
 ---
 
 <article class="tarjeta">
   <p class="rotulo">
-    <time datetime={fechaIso(fecha)}>{fechaLarga(fecha)}</time>
+    <time datetime={fechaIso(fecha)}>{fechaLarga(fecha, idioma)}</time>
     {serie && <span> · {serie.nombre} {String(serie.orden).padStart(2, "0")}</span>}
   </p>
   <h3><a href={urlDe(articulo)}>{titulo}</a></h3>

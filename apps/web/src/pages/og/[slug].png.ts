@@ -7,6 +7,7 @@ import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 import type { APIRoute, GetStaticPaths } from "astro";
 import { SITE } from "../../config";
+import { UI } from "../../i18n";
 import { getArticulos, minutosDeLectura, type Articulo } from "../../lib/diario";
 
 const require = createRequire(join(process.cwd(), "package.json"));
@@ -29,7 +30,7 @@ const h = (type: string, style: Record<string, unknown>, ...children: (Nodo | st
 
 export const GET: APIRoute = async ({ props }) => {
   const { data, body } = (props as { articulo: Articulo }).articulo;
-  const serie = data.serie ? `${data.serie.nombre} · ${String(data.serie.orden).padStart(2, "0")}` : "Diario";
+  const serie = data.serie ? `${data.serie.nombre} · ${String(data.serie.orden).padStart(2, "0")}` : UI[data.idioma].nav.diario;
   const largo = data.titulo.length > 42 ? 64 : 76;
 
   const fila = { width: "100%", alignItems: "center", justifyContent: "space-between" };
@@ -52,7 +53,7 @@ export const GET: APIRoute = async ({ props }) => {
       "div",
       { ...fila, height: 32, fontSize: 24, color: "#45454a" },
       h("div", { alignItems: "center" }, h("div", { width: 12, height: 26, marginRight: 14, background: "#0b7a57" }), SITE.name),
-      h("div", { fontFamily: "Mono", fontSize: 22 }, `${minutosDeLectura(body)} min de lectura`),
+      h("div", { fontFamily: "Mono", fontSize: 22 }, `${minutosDeLectura(body)} ${UI[data.idioma].articulo.lectura}`),
     ),
   );
 

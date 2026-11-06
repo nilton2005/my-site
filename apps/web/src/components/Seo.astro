@@ -1,5 +1,6 @@
 ---
 import { SITE } from "../config";
+import { idiomaDe, otroIdioma, RUTAS, UI } from "../i18n";
 
 interface Props {
   title: string;
@@ -11,20 +12,36 @@ interface Props {
   publishedTime?: Date;
   modifiedTime?: Date;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Ruta de esta misma página en el otro idioma. */
+  alternate?: string | undefined;
 }
 
-const { title, description, image, imageAlt = title, type = "website", publishedTime, modifiedTime, jsonLd } = Astro.props;
+const { title, description, image, imageAlt = title, type = "website", publishedTime, modifiedTime, jsonLd, alternate } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const idioma = idiomaDe(Astro.currentLocale);
+const otro = otroIdioma(idioma);
+const urlOtro = alternate ? new URL(alternate, Astro.site).href : undefined;
+const urlEs = idioma === "es" ? canonical : urlOtro;
 ---
 
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
+{
+  urlOtro && (
+    <>
+      <link rel="alternate" hreflang={idioma} href={canonical} />
+      <link rel="alternate" hreflang={otro} href={urlOtro} />
+      <link rel="alternate" hreflang="x-default" href={urlEs} />
+    </>
+  )
+}
 <meta name="author" content={SITE.name} />
 
 <meta property="og:type" content={type} />
 <meta property="og:site_name" content={SITE.name} />
-<meta property="og:locale" content={SITE.locale} />
+<meta property="og:locale" content={UI[idioma].sitio.locale} />
+<meta property="og:locale:alternate" content={UI[otro].sitio.locale} />
 <meta property="og:url" content={canonical} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
@@ -40,6 +57,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={image} />
 
-<link rel="alternate" type="application/rss+xml" title={`Diario · ${SITE.name}`} href={new URL("/rss.xml", Astro.site)} />
+<link rel="alternate" type="application/rss+xml" title={`${UI[idioma].diario.rss} · ${SITE.name}`} href={new URL(RUTAS[idioma].rss, Astro.site)} />
 <link rel="sitemap" href="/sitemap-index.xml" />
 {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}

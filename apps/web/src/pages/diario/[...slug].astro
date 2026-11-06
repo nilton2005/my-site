@@ -4,7 +4,7 @@ import Articulo from "../../layouts/Articulo.astro";
 import { getArticulos } from "../../lib/diario";
 
 export async function getStaticPaths() {
-  const articulos = await getArticulos();
+  const articulos = await getArticulos("es");
   return articulos.map((articulo) => ({ params: { slug: articulo.id }, props: { articulo } }));
 }
 

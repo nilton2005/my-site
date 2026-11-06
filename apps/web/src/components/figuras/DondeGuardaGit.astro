@@ -1,6 +1,13 @@
 ---
 // Figura interactiva "GIT · 01" generada en packages/figuras (pnpm build la crea antes que el sitio).
-import html from "@niltontaco/figuras/dist/donde-guarda-git.html?raw";
+import es from "@niltontaco/figuras/dist/donde-guarda-git.es.html?raw";
+import en from "@niltontaco/figuras/dist/donde-guarda-git.en.html?raw";
+
+interface Props {
+  idioma?: "es" | "en";
+}
+const { idioma = "es" } = Astro.props;
+const html = { es, en }[idioma];
 ---
 
 <div class="figura" data-pagefind-ignore="all" set:html={html} />

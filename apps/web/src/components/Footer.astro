@@ -1,5 +1,8 @@
 ---
 import { AUTHOR } from "../config";
+import { idiomaDe, RUTAS, UI } from "../i18n";
+
+const idioma = idiomaDe(Astro.currentLocale);
 const year = new Date().getFullYear();
 ---
 
@@ -8,9 +11,9 @@ const year = new Date().getFullYear();
   <p class="enlaces">
     {AUTHOR.github && <a href={AUTHOR.github} rel="me">GitHub</a>}
     {AUTHOR.linkedin && <a href={AUTHOR.linkedin} rel="me">LinkedIn</a>}
-    <a href="/rss.xml">RSS</a>
+    <a href={RUTAS[idioma].rss}>RSS</a>
   </p>
-  <p class="hecho">Hecho con Astro · publicado en Cloudflare Pages</p>
+  <p class="hecho">{UI[idioma].pie.hecho}</p>
 </footer>
 
 <style>

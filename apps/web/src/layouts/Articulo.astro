@@ -4,7 +4,8 @@ import type { MarkdownHeading } from "astro";
 import Base from "./Base.astro";
 import Indice from "../components/Indice.astro";
 import { AUTHOR, PERFILES, SITE } from "../config";
-import { fechaIso, fechaLarga, minutosDeLectura, urlDe, type Articulo } from "../lib/diario";
+import { RUTAS, UI } from "../i18n";
+import { fechaIso, fechaLarga, minutosDeLectura, traduccionDe, urlDe, type Articulo } from "../lib/diario";
 
 interface Props {
   articulo: Articulo;
@@ -12,7 +13,10 @@ interface Props {
 }
 
 const { articulo, headings } = Astro.props;
-const { titulo, descripcion, fecha, actualizado, serie, etiquetas, imagen, imagenAlt } = articulo.data;
+const { titulo, descripcion, fecha, actualizado, serie, etiquetas, imagen, imagenAlt, idioma } = articulo.data;
+const t = UI[idioma].articulo;
+const rutas = RUTAS[idioma];
+const traduccion = await traduccionDe(articulo);
 const minutos = minutosDeLectura(articulo.body);
 const url = new URL(urlDe(articulo), Astro.site).href;
 
@@ -29,7 +33,7 @@ const jsonLd = {
   description: descripcion,
   datePublished: fecha.toISOString(),
   dateModified: (actualizado ?? fecha).toISOString(),
-  inLanguage: SITE.lang,
+  inLanguage: idioma,
   mainEntityOfPage: url,
   url,
   image: og,
@@ -48,24 +52,25 @@ const jsonLd = {
   publishedTime={fecha}
   modifiedTime={actualizado}
   jsonLd={jsonLd}
+  alternate={traduccion && urlDe(traduccion)}
 >
   <div class="progreso" aria-hidden="true"><span data-progreso></span></div>
   <article class="articulo" data-pagefind-body>
     <header class="encabezado">
       <p class="rotulo">
-        <a href="/diario/">Diario</a>
+        <a href={rutas.diario}>{UI[idioma].nav.diario}</a>
         {serie && <span> / {serie.nombre} · {String(serie.orden).padStart(2, "0")}</span>}
       </p>
       <h1>{titulo}</h1>
       <p class="entrada">{descripcion}</p>
       <p class="meta">
-        <time datetime={fechaIso(fecha)}>{fechaLarga(fecha)}</time>
+        <time datetime={fechaIso(fecha)}>{fechaLarga(fecha, idioma)}</time>
         <span aria-hidden="true">·</span>
-        <span>{minutos} min de lectura</span>
+        <span>{minutos} {t.lectura}</span>
         {actualizado && (
           <>
             <span aria-hidden="true">·</span>
-            <span>actualizado el <time datetime={fechaIso(actualizado)}>{fechaLarga(actualizado)}</time></span>
+            <span>{t.actualizado} <time datetime={fechaIso(actualizado)}>{fechaLarga(actualizado, idioma)}</time></span>
           </>
         )}
       </p>
@@ -76,16 +81,17 @@ const jsonLd = {
     </div>
     <footer class="cierre" data-pagefind-ignore>
       {etiquetas.length > 0 && (
-        <ul class="etiquetas" aria-label="Etiquetas">
+        <ul class="etiquetas" aria-label={t.etiquetas}>
           {etiquetas.map((etiqueta) => <li>{etiqueta}</li>)}
         </ul>
       )}
       <p>
-        Escribo sobre cómo funcionan por dentro las herramientas de backend.
-        {AUTHOR.linkedin ? <>Si te sirvió, <a href={AUTHOR.linkedin}>sígueme en LinkedIn</a> o </> : <>Si te sirvió, </>}
-        suscríbete por <a href="/rss.xml">RSS</a>.
+        {t.cierre}
+        {t.siTeSirvio}
+        {AUTHOR.linkedin && <><a href={AUTHOR.linkedin}>{t.sigueme}</a> {t.o} </>}
+        {t.suscribete} <a href={rutas.rss}>RSS</a>.
       </p>
-      <p><a href="/diario/">← Volver al diario</a></p>
+      <p><a href={rutas.diario}>{t.volver}</a></p>
     </footer>
   </article>
 </Base>

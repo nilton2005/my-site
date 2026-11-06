@@ -1,0 +1,26 @@
+---
+import Base from "../../layouts/Base.astro";
+import { SITE } from "../../config";
+import { idiomaDe, RUTAS, UI } from "../../i18n";
+
+const idioma = idiomaDe(Astro.currentLocale);
+const t = UI[idioma].e404;
+---
+
+<Base title={`${t.titulo} · ${SITE.name}`} description={t.descripcion}>
+  <section class="contenedor">
+    <p class="rotulo">error 404</p>
+    <h1>fatal: not a valid object name</h1>
+    <p>{t.texto} <a href={RUTAS[idioma].diario}>{t.diario}</a> {t.o} <a href={RUTAS[idioma].inicio}>{t.inicio}</a>.</p>
+  </section>
+</Base>
+
+<style>
+  section {
+    padding-top: clamp(40px, 10vw, 120px);
+  }
+  h1 {
+    font-family: var(--font-mono);
+    font-size: clamp(1.4rem, 4.5vw, 2.2rem);
+  }
+</style>

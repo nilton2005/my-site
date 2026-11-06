@@ -1,5 +1,5 @@
 // GIT · 01 · ¿Dónde guarda Git tu código?
-// Figura isométrica interactiva hecha con el kit anatomy. `render()` devuelve un fragmento HTML
+// Figura isométrica interactiva hecha con el kit anatomy. `render(idioma)` devuelve un fragmento HTML
 // (estilos + figura + script) para insertar en cualquier página; scripts/build.mjs lo escribe en dist/.
 //
 // Tres etapas, como en el boceto: archivo → máquina git hash-object → almacén .git/objects/
@@ -16,6 +16,84 @@ import * as k from "../kit/iso-kit.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const kitScript = () => readFileSync(join(HERE, "..", "kit", "iso-kit.mjs"), "utf8").replace(/^export /gm, "");
 export const FIGURE_ID = "fig-donde-guarda-git";
+
+// ── Los textos de la figura, por idioma ───────────────────────────────────────────────────
+const TEXTOS = {
+  es: {
+    etapa1: "1 · tu archivo",
+    contenido: "contenido",
+    sinNombre: "sin nombre · sin fecha",
+    titulo: "Así guarda Git un archivo",
+    pista: "Enter procesa · clic en la hoja cambia una letra",
+    claves: [
+      "La hoja: el contenido. El nombre hola.js se queda en la mesa",
+      "Las cinco palabras de 32 bits de SHA-1 (A–E): 5 × 8 = 40 caracteres",
+      "256 cajones, de 00 a ff: .git/objects/",
+    ],
+    descripcion:
+      "Tres etapas sobre una placa de banco. 1: una hoja con el contenido del archivo, console.log(\"hola\");, sobre un carro; delante, un letrero con el nombre hola.js que se queda en la mesa. 2: una máquina git hash-object con un túnel; la ventanilla muestra lo que entra a SHA-1, blob 21\\0 más el contenido, y un tablero muestra las cinco palabras de 32 bits, A a E, que giran 80 rondas; un tambor cuenta las rondas. La hoja sale con el hash 8472c73b… estampado. 3: un archivador de 256 cajones, de 00 a ff, donde la hoja se guarda en el cajón 84.",
+    pie:
+      "1 · Tu archivo hola.js tiene un nombre y un contenido; a Git solo entra el contenido (21 bytes con el salto de línea final). 2 · git hash-object -w le antepone la cabecera blob 21\\0 y pasa todo por SHA-1: el mensaje se rellena hasta un bloque de 512 bits y las cinco palabras A–E se mezclan durante 80 rondas; al final, juntas, son el hash de 40 caracteres, 8472c73b5ad6a5727750f015fbff152a72ecea74. 3 · El objeto se guarda en .git/objects/84/72c73b… (los 2 primeros caracteres son la carpeta), comprimido con zlib. Cambia el nombre y el hash no cambia: ya existía. Cambia una letra y casi todo el hash cambia.",
+    controles: "Git hash-object en tres etapas. Enter procesa la hoja; H cambia una letra del contenido; N cambia el nombre del archivo; Escape vacía el archivador.",
+    vivo: {
+      listo: "Enter procesa",
+      entra: "entra el contenido · el nombre ",
+      seQueda: " se queda",
+      bloque: "bloque",
+      de: "de",
+      ronda: "ronda",
+      cambiaron: " de 40 cambiaron",
+      caracteres: " · 40 caracteres",
+      nuevo: "nuevo",
+      yaExistia: "ya existía",
+      objeto: " objeto",
+      objetos: " objetos",
+      guardado: "Guardado en .git/objects/",
+      existia: "Ya existía en .git/objects/",
+      nadaNuevo: "/: no se guarda nada nuevo",
+      otroNombre: "otro nombre, mismo contenido",
+      otraLetra: "una letra distinta: h → H",
+    },
+  },
+  en: {
+    etapa1: "1 · your file",
+    contenido: "content",
+    sinNombre: "no name · no date",
+    titulo: "How Git stores a file",
+    pista: "Enter runs it · click the sheet to change a letter",
+    claves: [
+      "The sheet: the content. The name hola.js stays on the table",
+      "The five 32-bit words of SHA-1 (A–E): 5 × 8 = 40 characters",
+      "256 drawers, from 00 to ff: .git/objects/",
+    ],
+    descripcion:
+      "Three stages on a bench plate. 1: a sheet with the content of the file, console.log(\"hola\");, on a carriage; in front of it, a sign with the name hola.js that stays on the table. 2: a git hash-object machine with a tunnel; a window shows what goes into SHA-1, blob 21\\0 plus the content, and a board shows the five 32-bit words, A to E, turning over 80 rounds; a drum counts the rounds. The sheet comes out stamped with the hash 8472c73b… 3: a cabinet of 256 drawers, from 00 to ff, where the sheet is stored in drawer 84.",
+    pie:
+      "1 · Your file hola.js has a name and content; only the content goes into Git (21 bytes, including the final newline). 2 · git hash-object -w prepends the header blob 21\\0 and runs it all through SHA-1: the message is padded to a 512-bit block and the five words A–E are mixed over 80 rounds; at the end, together, they are the 40-character hash, 8472c73b5ad6a5727750f015fbff152a72ecea74. 3 · The object is stored in .git/objects/84/72c73b… (the first 2 characters are the folder), compressed with zlib. Change the name and the hash stays the same: it already existed. Change one letter and almost the whole hash changes.",
+    controles: "Git hash-object in three stages. Enter runs the sheet; H changes a letter of the content; N changes the file name; Escape empties the cabinet.",
+    vivo: {
+      listo: "Enter runs it",
+      entra: "the content goes in · the name ",
+      seQueda: " stays behind",
+      bloque: "block",
+      de: "of",
+      ronda: "round",
+      cambiaron: " of 40 changed",
+      caracteres: " · 40 characters",
+      nuevo: "new",
+      yaExistia: "already there",
+      objeto: " object",
+      objetos: " objects",
+      guardado: "Saved to .git/objects/",
+      existia: "Already in .git/objects/",
+      nadaNuevo: "/: nothing new is stored",
+      otroNombre: "different name, same content",
+      otraLetra: "one letter changed: h → H",
+    },
+  },
+};
+// El idioma que se está generando: render() lo fija antes de construir la figura.
+let t = TEXTOS.es;
 
 // ── El modelo: SHA-1 con traza de cada ronda, y el blob como lo arma Git ─────────────────
 function sha1Trace(bytes) {
@@ -187,7 +265,7 @@ function plate() {
   out.push(D([at([strip.x + 2, strip.y + 3.2, 0.6]), at([strip.x + strip.w - 2, strip.y + 3.2, 0.6])], { size: 0.45 }));
   // las tres etapas, grabadas en el canto de la placa
   const stage = (n, x, label) => `<text class="hx-stage" data-stage="${n}" x="${x}" y="8" font-size="6" text-anchor="middle">${label}</text>`;
-  out.push(`<g transform="${planeOf(PLATE_FRONT)}">${stage(1, S1, "1 · tu archivo")}${stage(2, MID + 6, "2 · SHA-1")}${stage(3, C.x + C.w / 2, "3 · .git/objects/")}</g>`);
+  out.push(`<g transform="${planeOf(PLATE_FRONT)}">${stage(1, S1, t.etapa1)}${stage(2, MID + 6, "2 · SHA-1")}${stage(3, C.x + C.w / 2, "3 · .git/objects/")}</g>`);
   return out.join("");
 }
 
@@ -229,7 +307,7 @@ function carriage(which) {
     `<path class="iso-line" data-tone="lo" d="M${right - EAR} ${-top}V${-(top - EAR)}H${right}"/>`,
     which === "b"
       ? `<text class="hx-head" x="${TEXT_X}" y="${-(top - 6.4)}" font-size="3.6" data-part="head-b">blob 21\\0</text>`
-      : `<text class="hx-head" x="${TEXT_X}" y="${-(top - 6.4)}" font-size="3.6">contenido</text>`,
+      : `<text class="hx-head" x="${TEXT_X}" y="${-(top - 6.4)}" font-size="3.6">${t.contenido}</text>`,
     `<text class="hx-code" data-part="code-${which}" x="${TEXT_X}" y="${-(top - 16)}" font-size="4.4">console.log("hola");</text>`,
     `<path class="iso-line" data-tone="faint" d="M${-SHEET.w / 2} ${-(top - 21)}H${right}"/>`,
   ];
@@ -237,7 +315,7 @@ function carriage(which) {
     face.push(`<text class="hx-lead" data-part="lead" x="${TEXT_X}" y="${-(top - 30)}" font-size="6"></text>`);
     face.push(`<text class="hx-hashtext" data-part="rest" x="${TEXT_X + 9}" y="${-(top - 30)}" font-size="4.6"></text>`);
   } else {
-    face.push(`<text class="hx-head" x="${TEXT_X}" y="${-(top - 30)}" font-size="3.6">sin nombre · sin fecha</text>`);
+    face.push(`<text class="hx-head" x="${TEXT_X}" y="${-(top - 30)}" font-size="3.6">${t.sinNombre}</text>`);
   }
   const sheet = [
     S(k.slabOf({ x: -SHEET.w / 2, y: 0, w: SHEET.w, d: SHEET.t, r: 0.3 }, SHEET.z0, SHEET.h, P, 2), { tone: "hi", crease: "lo", lit: true }),
@@ -350,11 +428,10 @@ function cabinet() {
 // la hoja que sale del túnel se recorta en el plano del costado derecho de la máquina
 const exitX = at([M_RIGHT, TUNNEL.y1, 0])[0];
 
-const svg = k.figureSvg({
+const svg = () => k.figureSvg({
   width: WIDTH,
   height: HEIGHT,
-  label:
-    "Tres etapas sobre una placa de banco. 1: una hoja con el contenido del archivo, console.log(\"hola\");, sobre un carro; delante, un letrero con el nombre hola.js que se queda en la mesa. 2: una máquina git hash-object con un túnel; la ventanilla muestra lo que entra a SHA-1, blob 21\\0 más el contenido, y un tablero muestra las cinco palabras de 32 bits, A a E, que giran 80 rondas; un tambor cuenta las rondas. La hoja sale con el hash 8472c73b… estampado. 3: un archivador de 256 cajones, de 00 a ff, donde la hoja se guarda en el cajón 84.",
+  label: t.descripcion,
   body: [
     plate(),
     rail(),
@@ -371,13 +448,14 @@ const svg = k.figureSvg({
 });
 
 // ── La parte viva ─────────────────────────────────────────────────────────────────────────
-const live = `
+const live = () => `
 const P = ${JSON.stringify(P)};
 const S1 = ${S1}, MID = ${MID}, OUT = ${OUT}, INSIDE = ${INSIDE}, M_RIGHT = ${M_RIGHT};
 const C_FRONT = ${C_FRONT}, PULL = ${PULL}, GRID = ${JSON.stringify(GRID)}, GRID_TOP = ${GRID_TOP};
 const DRUM = ${JSON.stringify(DRUM)}, DRUM_Z = ${DRUM_Z}, DRUM_H = ${DRUM_H}, DRUM_R = ${DRUM_R};
 const TEXT_X = ${TEXT_X};
 const ZERO = "\\\\0";
+const T = ${JSON.stringify(t.vivo)};
 ${sha1Trace.toString()}
 ${blobOf.toString()}
 const needleAt = ${needleAt.toString().replace("k.lineOnTop", "lineOnTop")};
@@ -406,9 +484,9 @@ let frame = 0, previous = 0, visible = false, touring = !still.matches, idleTime
 
 const TOUR = [
   { do: "send", wait: 1.6 },
-  { do: "rename", name: "copia.js", note: "otro nombre, mismo contenido", wait: 1.8 },
+  { do: "rename", name: "copia.js", note: T.otroNombre, wait: 1.8 },
   { do: "send", wait: 0.3 },
-  { do: "edit", name: "hola.js", text: 'console.log("Hola");', note: "una letra distinta: h → H", wait: 1.8 },
+  { do: "edit", name: "hola.js", text: 'console.log("Hola");', note: T.otraLetra, wait: 1.8 },
   { do: "send", wait: 0.3 },
   { do: "hold", wait: 3.4 },
   { do: "reset", wait: 1.0 },
@@ -468,8 +546,8 @@ function file() {
   drawers.set(prefix, d);
   hot(prefix);
   const total = [...store.values()].reduce((sum, l) => sum + l.length, 0);
-  result = "objects/" + prefix + "/" + job.hash.slice(2, 8) + "… · " + (fresh ? "nuevo" : "ya existía") + " · " + total + (total === 1 ? " objeto" : " objetos");
-  status.textContent = fresh ? "Guardado en .git/objects/" + prefix + "/" + job.hash.slice(2) : "Ya existía en .git/objects/" + prefix + "/: no se guarda nada nuevo";
+  result = "objects/" + prefix + "/" + job.hash.slice(2, 8) + "… · " + (fresh ? T.nuevo : T.yaExistia) + " · " + total + (total === 1 ? T.objeto : T.objetos);
+  status.textContent = fresh ? T.guardado + prefix + "/" + job.hash.slice(2) : T.existia + prefix + T.nadaNuevo;
 }
 const cellPath = (r, c) => {
   const x0 = GRID.x0 + c * GRID.cw, z1 = GRID_TOP - r * GRID.ch;
@@ -504,10 +582,10 @@ function enter(next) {
 }
 function say() {
   let line;
-  if (state === "ready") line = note || result || (name + " · " + blobOf(text).size + " B · Enter procesa");
-  else if (state === "toMachine") line = "entra el contenido · el nombre " + name + " se queda";
-  else if (state === "sha") line = round < 0 ? "SHA-1 · bloque " + (block + 1) + " de " + job.blocks.length : "SHA-1 · bloque " + (block + 1) + "/" + job.blocks.length + " · ronda " + (round + 1) + "/80";
-  else if (state === "out" || state === "toCab") line = "hash " + job.hash.slice(0, 8) + "…" + (changed >= 0 ? " · " + changed + " de 40 cambiaron" : " · 40 caracteres");
+  if (state === "ready") line = note || result || (name + " · " + blobOf(text).size + " B · " + T.listo);
+  else if (state === "toMachine") line = T.entra + name + T.seQueda;
+  else if (state === "sha") line = round < 0 ? "SHA-1 · " + T.bloque + " " + (block + 1) + " " + T.de + " " + job.blocks.length : "SHA-1 · " + T.bloque + " " + (block + 1) + "/" + job.blocks.length + " · " + T.ronda + " " + (round + 1) + "/80";
+  else if (state === "out" || state === "toCab") line = "hash " + job.hash.slice(0, 8) + "…" + (changed >= 0 ? " · " + changed + T.cambiaron : T.caracteres);
   else line = result;
   if (readout.textContent !== line) readout.textContent = line;
 }
@@ -670,27 +748,28 @@ const css = `<style>
 </style>`;
 
 const first = blobOf('console.log("hola");');
-const body =
+const body = () =>
   css +
   k.plateHtml({
     fig: "GIT · 01",
-    title: "Así guarda Git un archivo",
-    hint: "Enter procesa · clic en la hoja cambia una letra",
-    readout: `hola.js · ${first.size} B · Enter procesa`,
+    title: t.titulo,
+    hint: t.pista,
+    readout: `hola.js · ${first.size} B · ${t.vivo.listo}`,
     keys: [
-      { mark: "lit", label: "La hoja: el contenido. El nombre hola.js se queda en la mesa" },
-      { mark: "raised", label: "Las cinco palabras de 32 bits de SHA-1 (A–E): 5 × 8 = 40 caracteres" },
-      { mark: "flat", label: "256 cajones, de 00 a ff: .git/objects/" },
+      { mark: "lit", label: t.claves[0] },
+      { mark: "raised", label: t.claves[1] },
+      { mark: "flat", label: t.claves[2] },
     ],
-    caption:
-      "1 · Tu archivo hola.js tiene un nombre y un contenido; a Git solo entra el contenido (21 bytes con el salto de línea final). 2 · git hash-object -w le antepone la cabecera blob 21\\0 y pasa todo por SHA-1: el mensaje se rellena hasta un bloque de 512 bits y las cinco palabras A–E se mezclan durante 80 rondas; al final, juntas, son el hash de 40 caracteres, 8472c73b5ad6a5727750f015fbff152a72ecea74. 3 · El objeto se guarda en .git/objects/84/72c73b… (los 2 primeros caracteres son la carpeta), comprimido con zlib. Cambia el nombre y el hash no cambia: ya existía. Cambia una letra y casi todo el hash cambia.",
-    body: `<div class="iso-stage" tabindex="0" role="group" aria-label="Git hash-object en tres etapas. Enter procesa la hoja; H cambia una letra del contenido; N cambia el nombre del archivo; Escape vacía el archivador.">${svg}<span class="hx-sr" role="status" aria-live="polite" data-status></span></div>`,
+    caption: t.pie,
+    body: `<div class="iso-stage" tabindex="0" role="group" aria-label="${t.controles}">${svg()}<span class="hx-sr" role="status" aria-live="polite" data-status></span></div>`,
   });
 
 export const HASH = first.hash;
 
 // Fragmento para insertar en una página: el tema lo pone la página (data-theme en el contenedor .iso).
-export function render() {
-  const script = (kitScript() + live).replace(/<\/(script)/gi, "<\\/$1");
-  return `<style>${k.ISO_CSS}</style><div class="iso" data-theme="light" data-figura id="${FIGURE_ID}">${body}</div><script type="module">${script}</script>`;
+export function render(idioma = "es") {
+  t = TEXTOS[idioma];
+  clips = 0;
+  const script = (kitScript() + live()).replace(/<\/(script)/gi, "<\\/$1");
+  return `<style>${k.ISO_CSS}</style><div class="iso" data-theme="light" data-figura id="${FIGURE_ID}">${body()}</div><script type="module">${script}</script>`;
 }

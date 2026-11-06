@@ -1,28 +1,57 @@
 ---
+import { IDIOMAS, idiomaDe, otroIdioma, RUTAS, UI } from "../i18n";
+
+interface Props {
+  /** Ruta de esta misma página en el otro idioma. Sin ella, el switch lleva a la portada. */
+  alternate?: string | undefined;
+}
+
 const path = Astro.url.pathname;
+const idioma = idiomaDe(Astro.currentLocale);
+const t = UI[idioma].nav;
+const destino = Astro.props.alternate ?? RUTAS[otroIdioma(idioma)].inicio;
 const enlaces = [
-  { href: "/", texto: "Quién soy", activo: path === "/" },
-  { href: "/diario/", texto: "Diario", activo: path.startsWith("/diario") },
+  { href: RUTAS[idioma].inicio, texto: t.inicio, activo: path === RUTAS[idioma].inicio },
+  { href: RUTAS[idioma].diario, texto: t.diario, activo: path.startsWith(RUTAS[idioma].diario) },
 ];
 ---
 
 <header class="cabecera">
-  <a class="marca" href="/" aria-label="Nilton Taco, inicio">
+  <a class="marca" href={RUTAS[idioma].inicio} aria-label={t.marca}>
     <span class="prompt" aria-hidden="true">~/</span>nilton-taco<span class="cursor" aria-hidden="true"></span>
   </a>
-  <nav aria-label="Principal">
+  <nav aria-label={t.principal}>
     {enlaces.map((e) => <a href={e.href} aria-current={e.activo ? "page" : undefined}>{e.texto}</a>)}
-    <button class="buscar" type="button" data-abrir-paleta aria-label="Buscar (Ctrl K)" title="Buscar">
+  </nav>
+  <div class="herramientas">
+    <button class="buscar" type="button" data-abrir-paleta aria-label={`${t.buscar} (Ctrl K)`} title={t.buscar}>
       <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
       <kbd data-atajo>Ctrl K</kbd>
     </button>
-    <a class="icono" href="/rss.xml" title="RSS del diario" aria-label="RSS del diario">
+    <a class="icono rss" href={RUTAS[idioma].rss} title={t.rss} aria-label={t.rss}>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 19a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-1-8a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
     </a>
-    <button class="icono" type="button" data-cambiar-tema aria-label="Cambiar entre tema claro y oscuro" title="Tema claro / oscuro">
+    <button class="icono" type="button" data-cambiar-tema aria-label={t.tema} title={t.temaCorto}>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" /></svg>
     </button>
-  </nav>
+    <div class="idiomas" role="group" aria-label={t.idioma}>
+      {
+        IDIOMAS.map((i) => (
+          <a
+            href={i === idioma ? path : destino}
+            hreflang={i}
+            lang={i}
+            aria-current={i === idioma ? "true" : undefined}
+            aria-label={UI[i].nav.leerEn}
+            title={UI[i].nav.leerEn}
+            data-idioma={i}
+          >
+            {i.toUpperCase()}
+          </a>
+        ))
+      }
+    </div>
+  </div>
 </header>
 
 <style>
@@ -69,9 +98,16 @@ const enlaces = [
     display: flex;
     align-items: center;
     gap: 4px;
+    margin-left: auto;
+  }
+  .herramientas {
+    display: flex;
+    align-items: center;
+    gap: 2px;
   }
   nav a,
-  nav button {
+  .herramientas > a,
+  .herramientas > button {
     display: inline-flex;
     align-items: center;
     min-height: 36px;
@@ -86,7 +122,8 @@ const enlaces = [
     cursor: pointer;
   }
   nav a:hover,
-  nav button:hover {
+  .herramientas > a:hover,
+  .herramientas > button:hover {
     color: var(--strong);
     background: var(--surface);
   }
@@ -110,9 +147,52 @@ const enlaces = [
     border-radius: 5px;
     font: 500 11px/1.4 var(--font-mono);
   }
-  @media (max-width: 640px) {
+  /* Switch de idioma */
+  .idiomas {
+    display: inline-flex;
+    margin-left: 6px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .idiomas a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 9px;
+    border-radius: 999px;
+    color: var(--muted);
+    font: 600 12px/1 var(--font-mono);
+    text-decoration: none;
+    transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
+  }
+  .idiomas a:hover {
+    color: var(--strong);
+  }
+  .idiomas a[aria-current] {
+    background: var(--strong);
+    color: var(--page);
+  }
+  @media (max-width: 760px) {
     .buscar kbd {
       display: none;
+    }
+  }
+  /* En el celular, los enlaces bajan a una segunda fila */
+  @media (max-width: 560px) {
+    .cabecera {
+      flex-wrap: wrap;
+    }
+    .herramientas {
+      margin-left: auto;
+    }
+    .rss {
+      display: none;
+    }
+    nav {
+      order: 3;
+      width: 100%;
+      margin-left: -10px;
     }
   }
   @media (max-width: 420px) {
@@ -124,10 +204,6 @@ const enlaces = [
     }
     .cursor {
       display: none;
-    }
-    nav a,
-    nav button {
-      padding: 0 8px;
     }
   }
 </style>

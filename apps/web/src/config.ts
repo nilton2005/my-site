@@ -1,12 +1,7 @@
-// Datos del sitio en un solo lugar. Cambia aquí tus enlaces y textos base.
+// Datos del sitio en un solo lugar. Los textos de cada idioma están en i18n.ts.
 export const SITE = {
   url: "https://niltontaco.pages.dev",
   name: "Nilton Taco",
-  title: "Nilton Taco · Backend con Node.js y TypeScript",
-  description:
-    "Diario técnico de Nilton Taco: cómo funcionan por dentro las herramientas de backend, empezando por Git, explicado con figuras interactivas.",
-  lang: "es",
-  locale: "es_PE",
 } as const;
 
 export const AUTHOR = {

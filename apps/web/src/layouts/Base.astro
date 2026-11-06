@@ -5,25 +5,29 @@ import Seo from "../components/Seo.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import Paleta from "../components/Paleta.astro";
-import { SITE } from "../config";
+import { idiomaDe, RUTAS, UI } from "../i18n";
 
 interface Props {
   title: string;
   description?: string;
-  /** URL absoluta de la imagen para redes. Por defecto, /og.png. */
+  /** URL absoluta de la imagen para redes. Por defecto, la del idioma. */
   image?: string;
   imageAlt?: string;
   type?: "website" | "article";
   publishedTime?: Date;
   modifiedTime?: Date;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Ruta de esta misma página en el otro idioma: la usan el switch y los hreflang. */
+  alternate?: string | undefined;
 }
 
-const { description = SITE.description, image = new URL("/og.png", Astro.site).href, ...rest } = Astro.props;
+const idioma = idiomaDe(Astro.currentLocale);
+const t = UI[idioma];
+const { description = t.sitio.descripcion, image = new URL(RUTAS[idioma].og, Astro.site).href, alternate, ...rest } = Astro.props;
 ---
 
 <!doctype html>
-<html lang={SITE.lang}>
+<html lang={idioma}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -31,7 +35,7 @@ const { description = SITE.description, image = new URL("/og.png", Astro.site).h
     <meta name="theme-color" content="#0b0b0b" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="generator" content={Astro.generator} />
-    <Seo description={description} image={image} {...rest} />
+    <Seo description={description} image={image} alternate={alternate} {...rest} />
     <script is:inline>
       // Antes de pintar: tema guardado o, si no hay, el del sistema. Así no hay parpadeo.
       (() => {
@@ -43,8 +47,8 @@ const { description = SITE.description, image = new URL("/og.png", Astro.site).h
     </script>
   </head>
   <body>
-    <a class="saltar" href="#contenido">Saltar al contenido</a>
-    <Header />
+    <a class="saltar" href="#contenido">{t.nav.saltar}</a>
+    <Header alternate={alternate} />
     <main id="contenido">
       <slot />
     </main>
@@ -63,6 +67,17 @@ const { description = SITE.description, image = new URL("/og.png", Astro.site).h
         aplicar();
       });
 
+      // Los marcos de código se generan en español (lib/codigo.mjs); en inglés se traducen aquí.
+      const ingles = raiz.lang === "en";
+      const textos = ingles ? { copiar: "Copy", copiado: "Copied", error: "Could not copy" } : { copiar: "Copiar", copiado: "Copiado", error: "No se pudo copiar" };
+      if (ingles) {
+        for (const boton of document.querySelectorAll<HTMLButtonElement>("[data-copiar]")) {
+          boton.textContent = textos.copiar;
+          boton.setAttribute("aria-label", "Copy the code");
+        }
+        for (const titulo of document.querySelectorAll(".codigo-titulo:not(.es-archivo)")) if (titulo.textContent === "texto") titulo.textContent = "text";
+      }
+
       // Botón «Copiar» de los bloques de código. En la terminal copia solo los comandos (sin «$» ni la salida).
       document.addEventListener("click", async (e) => {
         const boton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-copiar]");
@@ -73,13 +88,13 @@ const { description = SITE.description, image = new URL("/og.png", Astro.site).h
         const texto = marco?.hasAttribute("data-terminal") && comandos.length ? comandos.join("\n") : lineas.join("\n");
         try {
           await navigator.clipboard.writeText(texto);
-          boton.textContent = "Copiado";
+          boton.textContent = textos.copiado;
           boton.dataset.copiado = "";
         } catch {
-          boton.textContent = "No se pudo copiar";
+          boton.textContent = textos.error;
         }
         setTimeout(() => {
-          boton.textContent = "Copiar";
+          boton.textContent = textos.copiar;
           delete boton.dataset.copiado;
         }, 1600);
       });

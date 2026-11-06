@@ -63,6 +63,16 @@ console.log("hola"); // [!code highlight]   → resalta la línea ([!code ++] / 
 
 En los bloques de terminal, «Copiar» copia solo los comandos (sin `$` ni la salida).
 
+## Dos idiomas (ES / EN)
+
+- Español en la raíz (`/diario/…`) e inglés en `/en/` (`/en/journal/…`). El switch ES / EN está en la cabecera y,
+  en un artículo, lleva a su traducción.
+- Los textos de la interfaz están en `apps/web/src/i18n.ts`.
+- Para traducir un artículo: crea su carpeta en inglés con `idioma: en` y `traduccion: <carpeta-en-español>`, y pon en
+  el español `traduccion: <carpeta-en-inglés>`. Eso genera los `hreflang` que Google usa para mostrar cada idioma a quien corresponde.
+- Un artículo sin traducción no aparece en el otro idioma, y el switch lleva a la portada.
+- Las figuras se generan en los dos idiomas (`packages/figuras`).
+
 ## Qué trae el sitio
 
 - **Paleta de comandos** con `Ctrl K` / `⌘ K` o `/`: navegar, cambiar el tema y buscar en todo el diario.

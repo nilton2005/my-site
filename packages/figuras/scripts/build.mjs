@@ -9,7 +9,10 @@ const FIGURAS = { "donde-guarda-git": dondeGuardaGit };
 
 mkdirSync(DIST, { recursive: true });
 for (const [name, figura] of Object.entries(FIGURAS)) {
-  const html = figura.render();
-  writeFileSync(join(DIST, `${name}.html`), html);
-  console.log(`figuras: ${name}.html · ${(html.length / 1024).toFixed(0)} KB${figura.HASH ? ` · ${figura.HASH}` : ""}`);
+  for (const idioma of ["es", "en"]) {
+    const archivo = `${name}.${idioma}.html`;
+    const html = figura.render(idioma);
+    writeFileSync(join(DIST, archivo), html);
+    console.log(`figuras: ${archivo} · ${(html.length / 1024).toFixed(0)} KB${figura.HASH ? ` · ${figura.HASH}` : ""}`);
+  }
 }

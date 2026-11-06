@@ -2,11 +2,13 @@
 // Tabla de contenidos del artículo. En pantallas anchas queda fija a la derecha y marca la sección
 // que estás leyendo; en el celular es un desplegable al inicio del artículo.
 import type { MarkdownHeading } from "astro";
+import { idiomaDe, UI } from "../i18n";
 
 interface Props {
   headings: MarkdownHeading[];
 }
 
+const enEste = UI[idiomaDe(Astro.currentLocale)].articulo.enEste;
 const titulos = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3);
 // Agrupa cada h3 bajo su h2
 const grupos: { h2: MarkdownHeading; h3: MarkdownHeading[] }[] = [];
@@ -20,7 +22,7 @@ for (const h of titulos) {
   grupos.length > 2 && (
     <>
       <details class="indice-movil">
-        <summary>En este artículo</summary>
+        <summary>{enEste}</summary>
         <ol>
           {grupos.map(({ h2, h3 }) => (
             <li>
@@ -30,8 +32,8 @@ for (const h of titulos) {
           ))}
         </ol>
       </details>
-      <nav class="indice" aria-label="En este artículo" data-indice>
-        <p class="rotulo">En este artículo</p>
+      <nav class="indice" aria-label={enEste} data-indice>
+        <p class="rotulo">{enEste}</p>
         <ol>
           {grupos.map(({ h2, h3 }) => (
             <li>

@@ -1,0 +1,66 @@
+/*
+ * Tokens de diseño compartidos. El papel y la tinta coinciden con las figuras anatomy,
+ * así que una figura se ve como parte de la página y no como un recuadro pegado.
+ * El tema lo pone <html data-theme="light|dark">; sin JavaScript se sigue al sistema.
+ */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #f2f2ef;
+  --surface: #fbfbfa;
+  --surface-2: #ffffff;
+  --line: #e2e2de;
+  --line-strong: #cfcfca;
+  --text: #45454a;
+  --muted: #7c7c82;
+  --strong: #18181a;
+  --accent: #0b7a57;
+  --accent-soft: #e3f3ec;
+  --code-bg: #f6f6f3;
+  --shadow: 0 1px 0 #ffffffb3 inset, 0 0 0 1px #0000000d, 0 8px 24px -12px #0000001f;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0b0b0b;
+  --surface: #131313;
+  --surface-2: #181818;
+  --line: #232323;
+  --line-strong: #333333;
+  --text: #a8a8a8;
+  --muted: #6e6e6e;
+  --strong: #ececec;
+  --accent: #46d79b;
+  --accent-soft: #10251c;
+  --code-bg: #101010;
+  --shadow: 0 1px 0 #ffffff08 inset, 0 0 0 1px #ffffff0d, 0 8px 24px -12px #000000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0b0b0b;
+    --surface: #131313;
+    --surface-2: #181818;
+    --line: #232323;
+    --line-strong: #333333;
+    --text: #a8a8a8;
+    --muted: #6e6e6e;
+    --strong: #ececec;
+    --accent: #46d79b;
+    --accent-soft: #10251c;
+    --code-bg: #101010;
+    --shadow: 0 1px 0 #ffffff08 inset, 0 0 0 1px #ffffff0d, 0 8px 24px -12px #000000;
+  }
+}
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --measure: 680px;
+  --wide: 860px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+}

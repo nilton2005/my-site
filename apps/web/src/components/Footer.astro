@@ -1,0 +1,45 @@
+---
+import { AUTHOR } from "../config";
+const year = new Date().getFullYear();
+---
+
+<footer class="pie">
+  <p>© {year} {AUTHOR.name}</p>
+  <p class="enlaces">
+    {AUTHOR.github && <a href={AUTHOR.github} rel="me">GitHub</a>}
+    {AUTHOR.linkedin && <a href={AUTHOR.linkedin} rel="me">LinkedIn</a>}
+    <a href="/rss.xml">RSS</a>
+  </p>
+  <p class="hecho">Hecho con Astro · publicado en Cloudflare Pages</p>
+</footer>
+
+<style>
+  .pie {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 24px;
+    width: min(var(--wide), 100%);
+    margin: 96px auto 0;
+    padding: 28px var(--gutter) 40px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .pie p {
+    margin: 0;
+  }
+  .enlaces {
+    display: flex;
+    gap: 16px;
+  }
+  .enlaces a {
+    color: var(--text);
+  }
+  .hecho {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+</style>

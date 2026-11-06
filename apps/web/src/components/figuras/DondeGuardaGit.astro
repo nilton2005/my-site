@@ -1,0 +1,20 @@
+---
+// Figura interactiva "GIT · 01" generada en packages/figuras (pnpm build la crea antes que el sitio).
+import html from "@niltontaco/figuras/dist/donde-guarda-git.html?raw";
+---
+
+<div class="figura" data-pagefind-ignore="all" set:html={html} />
+
+<style>
+  .figura {
+    width: min(var(--wide), 100vw - 2 * var(--gutter));
+    margin: 2.2em 0 2.4em 50%;
+    transform: translateX(-50%);
+  }
+  /* Con el índice fijo a la derecha, la figura no debe pasar por debajo de él */
+  @media (min-width: 1280px) {
+    .figura {
+      width: calc(var(--measure) + 96px);
+    }
+  }
+</style>

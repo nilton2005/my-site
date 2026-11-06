@@ -1,0 +1,30 @@
+---
+// Recuadro para aclaraciones dentro de un artículo: <Nota titulo="Ojo">…</Nota>
+interface Props {
+  titulo?: string;
+}
+const { titulo = "Nota" } = Astro.props;
+---
+
+<aside class="nota">
+  <p class="rotulo">{titulo}</p>
+  <slot />
+</aside>
+
+<style>
+  .nota {
+    margin: 1.8em 0;
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .nota :global(p) {
+    margin: 0.4em 0;
+  }
+  .nota .rotulo {
+    margin: 0 0 4px;
+    color: var(--accent);
+  }
+</style>

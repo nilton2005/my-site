@@ -1,0 +1,43 @@
+---
+import Base from "../../layouts/Base.astro";
+import TarjetaArticulo from "../../components/TarjetaArticulo.astro";
+import { SITE } from "../../config";
+import { getArticulos } from "../../lib/diario";
+
+const articulos = await getArticulos();
+const descripcion =
+  "Diario técnico de Nilton Taco: cómo funcionan por dentro Git y las herramientas de backend, con comandos reproducibles y figuras interactivas.";
+---
+
+<Base title={`Diario · ${SITE.name}`} description={descripcion}>
+  <section class="contenedor">
+    <p class="rotulo">Diario</p>
+    <h1>Lo que aprendo, por dentro.</h1>
+    <p class="entrada">
+      Notas sobre backend escritas para entender cómo funcionan las cosas, no solo cómo se usan. Cada artículo trae
+      comandos que puedes reproducir y, cuando ayuda, una figura que puedes tocar.
+    </p>
+    <div class="rejilla">
+      {articulos.map((articulo) => <TarjetaArticulo articulo={articulo} />)}
+    </div>
+  </section>
+</Base>
+
+<style>
+  section {
+    padding-top: clamp(24px, 6vw, 64px);
+  }
+  h1 {
+    margin: 8px 0 14px;
+    font-size: clamp(2rem, 6vw, 3rem);
+  }
+  .entrada {
+    max-width: 60ch;
+    margin: 0 0 40px;
+    font-size: 1.1rem;
+  }
+  .rejilla {
+    display: grid;
+    gap: 16px;
+  }
+</style>

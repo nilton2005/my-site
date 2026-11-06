@@ -1,0 +1,20 @@
+{
+  "name": "niltontaco",
+  "private": true,
+  "type": "module",
+  "description": "Sitio personal de Nilton Taco: quién soy y diario técnico.",
+  "packageManager": "pnpm@12.4.1",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.11.0",
+      "onFail": "download"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm --filter @niltontaco/figuras build && pnpm --filter web dev",
+    "build": "pnpm --filter web... build",
+    "preview": "pnpm --filter web preview",
+    "check": "pnpm --filter @niltontaco/figuras build && pnpm --filter web check"
+  }
+}

@@ -1,0 +1,53 @@
+---
+import { fechaIso, fechaLarga, urlDe, type Articulo } from "../lib/diario";
+
+interface Props {
+  articulo: Articulo;
+}
+const { articulo } = Astro.props;
+const { titulo, descripcion, fecha, serie } = articulo.data;
+---
+
+<article class="tarjeta">
+  <p class="rotulo">
+    <time datetime={fechaIso(fecha)}>{fechaLarga(fecha)}</time>
+    {serie && <span> · {serie.nombre} {String(serie.orden).padStart(2, "0")}</span>}
+  </p>
+  <h3><a href={urlDe(articulo)}>{titulo}</a></h3>
+  <p class="descripcion">{descripcion}</p>
+</article>
+
+<style>
+  .tarjeta {
+    position: relative;
+    padding: 20px 22px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: transform 0.25s var(--ease);
+  }
+  .tarjeta:hover {
+    transform: translateY(-2px);
+  }
+  .rotulo {
+    margin: 0;
+  }
+  h3 {
+    margin: 6px 0 6px;
+    font-size: 1.25rem;
+  }
+  h3 a {
+    text-decoration: none;
+  }
+  /* toda la tarjeta es clicable */
+  h3 a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .descripcion {
+    margin: 0;
+    font-size: 15.5px;
+  }
+</style>

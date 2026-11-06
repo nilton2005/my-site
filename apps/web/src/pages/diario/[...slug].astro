@@ -1,0 +1,17 @@
+---
+import { render } from "astro:content";
+import Articulo from "../../layouts/Articulo.astro";
+import { getArticulos } from "../../lib/diario";
+
+export async function getStaticPaths() {
+  const articulos = await getArticulos();
+  return articulos.map((articulo) => ({ params: { slug: articulo.id }, props: { articulo } }));
+}
+
+const { articulo } = Astro.props;
+const { Content, headings } = await render(articulo);
+---
+
+<Articulo articulo={articulo} headings={headings}>
+  <Content />
+</Articulo>

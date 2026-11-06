@@ -1,0 +1,312 @@
+---
+// Paleta de comandos (Ctrl K / ⌘ K, o «/»): navegar, cambiar el tema y buscar en todo el diario.
+// La búsqueda de texto usa Pagefind: su índice se genera al compilar (`pnpm build`), sin servidor.
+// En `pnpm dev` no hay índice, así que solo se filtran los comandos y los títulos.
+import { AUTHOR } from "../config";
+import { getArticulos, urlDe } from "../lib/diario";
+
+type Comando = { grupo: string; titulo: string; detalle?: string; url?: string; accion?: "tema"; externo?: boolean };
+
+const articulos = await getArticulos();
+const comandos: Comando[] = [
+  { grupo: "Ir a", titulo: "Quién soy", url: "/" },
+  { grupo: "Ir a", titulo: "Diario", url: "/diario/" },
+  ...articulos.map((a) => ({ grupo: "Artículos", titulo: a.data.titulo, detalle: [a.data.serie?.nombre, ...a.data.etiquetas].filter(Boolean).join(" · "), url: urlDe(a) })),
+  { grupo: "Acciones", titulo: "Cambiar tema claro / oscuro", accion: "tema" },
+  { grupo: "Enlaces", titulo: "RSS del diario", url: "/rss.xml" },
+  ...(AUTHOR.github ? [{ grupo: "Enlaces", titulo: "GitHub", url: AUTHOR.github, externo: true }] : []),
+  ...(AUTHOR.linkedin ? [{ grupo: "Enlaces", titulo: "LinkedIn", url: AUTHOR.linkedin, externo: true }] : []),
+];
+---
+
+<dialog class="paleta" data-paleta aria-label="Buscar y navegar">
+  <div class="entrada">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+    <input
+      type="text"
+      role="combobox"
+      aria-expanded="true"
+      aria-controls="paleta-lista"
+      aria-autocomplete="list"
+      aria-label="Buscar artículos, temas o comandos"
+      placeholder="Busca artículos, temas o comandos…"
+      autocomplete="off"
+      spellcheck="false"
+      data-paleta-texto
+    />
+    <kbd>Esc</kbd>
+  </div>
+  <ul id="paleta-lista" role="listbox" aria-label="Resultados" data-paleta-lista></ul>
+  <p class="ayuda"><span><kbd>↑</kbd> <kbd>↓</kbd> moverte</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> cerrar</span></p>
+</dialog>
+<script type="application/json" data-paleta-datos set:html={JSON.stringify(comandos)} />
+
+<script>
+  type Comando = { grupo: string; titulo: string; detalle?: string; url?: string; accion?: "tema"; externo?: boolean; html?: string };
+  type Pagefind = {
+    search: (q: string) => Promise<{ results: { data: () => Promise<{ url: string; excerpt: string; meta: { title?: string } }> }[] }>;
+    init?: () => Promise<void>;
+  };
+
+  const dialogo = document.querySelector<HTMLDialogElement>("[data-paleta]")!;
+  const texto = dialogo.querySelector<HTMLInputElement>("[data-paleta-texto]")!;
+  const lista = dialogo.querySelector<HTMLUListElement>("[data-paleta-lista]")!;
+  const comandos: Comando[] = JSON.parse(document.querySelector("[data-paleta-datos]")!.textContent ?? "[]");
+
+  // Sin tildes y en minúsculas, para que «codigo» encuentre «código».
+  const normal = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+  let visibles: Comando[] = [];
+  let activo = 0;
+  let consulta = 0;
+  let pagefind: Pagefind | null | undefined;
+
+  async function cargarPagefind(): Promise<Pagefind | null> {
+    if (pagefind !== undefined) return pagefind;
+    try {
+      const ruta = "/pagefind/pagefind.js";
+      pagefind = (await import(/* @vite-ignore */ ruta)) as Pagefind;
+      await pagefind.init?.();
+    } catch {
+      pagefind = null; // en `pnpm dev` no hay índice
+    }
+    return pagefind;
+  }
+
+  function pintar() {
+    lista.replaceChildren();
+    let grupo = "";
+    visibles.forEach((c, i) => {
+      if (c.grupo !== grupo) {
+        grupo = c.grupo;
+        const cabecera = document.createElement("li");
+        cabecera.className = "grupo";
+        cabecera.setAttribute("role", "presentation");
+        cabecera.textContent = grupo;
+        lista.append(cabecera);
+      }
+      const li = document.createElement("li");
+      li.id = `paleta-op-${i}`;
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", String(i === activo));
+      li.dataset.indice = String(i);
+      const titulo = document.createElement("span");
+      titulo.className = "titulo";
+      titulo.textContent = c.titulo;
+      li.append(titulo);
+      if (c.html) {
+        // Extracto de Pagefind: texto de nuestras propias páginas con <mark> en las coincidencias.
+        const extracto = document.createElement("span");
+        extracto.className = "detalle";
+        extracto.innerHTML = c.html;
+        li.append(extracto);
+      } else if (c.detalle) {
+        const detalle = document.createElement("span");
+        detalle.className = "detalle";
+        detalle.textContent = c.detalle;
+        li.append(detalle);
+      }
+      lista.append(li);
+    });
+    if (!visibles.length) {
+      const vacio = document.createElement("li");
+      vacio.className = "vacio";
+      vacio.textContent = "Sin resultados. Prueba con otra palabra.";
+      lista.append(vacio);
+    }
+    texto.setAttribute("aria-activedescendant", visibles.length ? `paleta-op-${activo}` : "");
+    lista.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+  }
+
+  async function buscar() {
+    const q = texto.value.trim();
+    const n = normal(q);
+    const propios = n ? comandos.filter((c) => normal(`${c.titulo} ${c.detalle ?? ""} ${c.grupo}`).includes(n)) : comandos;
+    visibles = propios;
+    activo = 0;
+    pintar();
+    if (q.length < 2) return;
+    const id = ++consulta;
+    const pf = await cargarPagefind();
+    if (!pf || id !== consulta) return;
+    const { results } = await pf.search(q);
+    const datos = await Promise.all(results.slice(0, 6).map((r) => r.data()));
+    if (id !== consulta) return;
+    const contenido: Comando[] = datos.map((d) => ({ grupo: "En el diario", titulo: d.meta.title ?? d.url, url: d.url, html: d.excerpt }));
+    visibles = [...contenido, ...propios];
+    activo = 0;
+    pintar();
+  }
+
+  function ejecutar(c: Comando | undefined) {
+    if (!c) return;
+    dialogo.close();
+    if (c.accion === "tema") document.querySelector<HTMLButtonElement>("[data-cambiar-tema]")?.click();
+    else if (c.url && c.externo) window.open(c.url, "_blank", "noopener");
+    else if (c.url) location.href = c.url;
+  }
+
+  function abrir() {
+    if (dialogo.open) return;
+    texto.value = "";
+    dialogo.showModal();
+    texto.focus();
+    void buscar();
+    void cargarPagefind();
+  }
+
+  texto.addEventListener("input", () => void buscar());
+  texto.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!visibles.length) return;
+      activo = (activo + (e.key === "ArrowDown" ? 1 : -1) + visibles.length) % visibles.length;
+      pintar();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      ejecutar(visibles[activo]);
+    }
+  });
+  lista.addEventListener("click", (e) => {
+    const li = (e.target as HTMLElement).closest<HTMLElement>("[role=option]");
+    if (li) ejecutar(visibles[Number(li.dataset.indice)]);
+  });
+  // Clic fuera de la caja: cerrar.
+  dialogo.addEventListener("click", (e) => {
+    if (e.target === dialogo) dialogo.close();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const escribiendo = (e.target as HTMLElement).closest("input, textarea, [contenteditable], .iso-stage");
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (dialogo.open) dialogo.close();
+      else abrir();
+    } else if (e.key === "/" && !escribiendo && !dialogo.open) {
+      e.preventDefault();
+      abrir();
+    }
+  });
+  for (const boton of document.querySelectorAll("[data-abrir-paleta]")) boton.addEventListener("click", abrir);
+  // En Mac se muestra ⌘ K; en el resto, Ctrl K.
+  if (/Mac|iPhone|iPad/.test(navigator.platform)) for (const k of document.querySelectorAll("[data-atajo]")) k.textContent = "⌘ K";
+</script>
+
+<style is:global>
+  .paleta {
+    width: min(620px, calc(100vw - 24px));
+    max-height: min(560px, calc(100vh - 96px));
+    margin: 12vh auto auto;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 30px 80px -20px #00000059;
+    overflow: hidden;
+  }
+  .paleta[open] {
+    display: flex;
+    flex-direction: column;
+    animation: paleta-entrar 0.18s var(--ease);
+  }
+  .paleta::backdrop {
+    background: color-mix(in srgb, var(--page) 55%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  @keyframes paleta-entrar {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.99);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .paleta[open] {
+      animation: none;
+    }
+  }
+  .paleta .entrada {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .paleta input {
+    flex: 1;
+    min-width: 0;
+    height: 54px;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--strong);
+    font: 16px/1 var(--font-sans);
+  }
+  .paleta input::placeholder {
+    color: var(--muted);
+  }
+  .paleta ul {
+    flex: 1;
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+  }
+  .paleta li[role="option"] {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .paleta li[aria-selected="true"] {
+    background: var(--accent-soft);
+  }
+  .paleta li[aria-selected="true"] .titulo {
+    color: var(--accent);
+  }
+  .paleta .titulo {
+    color: var(--strong);
+    font-weight: 500;
+    font-size: 15px;
+  }
+  .paleta .detalle {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .paleta .detalle mark {
+    background: none;
+    color: var(--strong);
+    font-weight: 600;
+  }
+  .paleta .grupo {
+    padding: 10px 12px 4px;
+    color: var(--muted);
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .paleta .vacio {
+    padding: 18px 12px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .paleta .ayuda {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin: 0;
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  @media (max-width: 520px) {
+    .paleta .ayuda {
+      display: none;
+    }
+  }
+</style>

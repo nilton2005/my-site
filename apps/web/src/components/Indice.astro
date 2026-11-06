@@ -1,0 +1,141 @@
+---
+// Tabla de contenidos del artículo. En pantallas anchas queda fija a la derecha y marca la sección
+// que estás leyendo; en el celular es un desplegable al inicio del artículo.
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const titulos = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3);
+// Agrupa cada h3 bajo su h2
+const grupos: { h2: MarkdownHeading; h3: MarkdownHeading[] }[] = [];
+for (const h of titulos) {
+  if (h.depth === 2 || grupos.length === 0) grupos.push({ h2: h, h3: [] });
+  else grupos[grupos.length - 1]!.h3.push(h);
+}
+---
+
+{
+  grupos.length > 2 && (
+    <>
+      <details class="indice-movil">
+        <summary>En este artículo</summary>
+        <ol>
+          {grupos.map(({ h2, h3 }) => (
+            <li>
+              <a href={`#${h2.slug}`}>{h2.text}</a>
+              {h3.length > 0 && <ol>{h3.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}</ol>}
+            </li>
+          ))}
+        </ol>
+      </details>
+      <nav class="indice" aria-label="En este artículo" data-indice>
+        <p class="rotulo">En este artículo</p>
+        <ol>
+          {grupos.map(({ h2, h3 }) => (
+            <li>
+              <a href={`#${h2.slug}`}>{h2.text}</a>
+              {h3.length > 0 && <ol>{h3.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}</ol>}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </>
+  )
+}
+
+<script>
+  // Marca en el índice la sección visible.
+  const indice = document.querySelector<HTMLElement>("[data-indice]");
+  if (indice) {
+    const enlaces = new Map<string, HTMLAnchorElement>();
+    for (const a of indice.querySelectorAll<HTMLAnchorElement>("a")) enlaces.set(decodeURIComponent(a.hash.slice(1)), a);
+    const titulos = [...document.querySelectorAll<HTMLElement>(".prosa h2[id], .prosa h3[id]")];
+    // La sección activa es el último título que ya pasó por la parte de arriba de la pantalla.
+    // Se recalcula en cada scroll (una vez por cuadro), así funciona también con saltos largos.
+    let pendiente = false;
+    const marcar = () => {
+      pendiente = false;
+      const actual = titulos.filter((t) => t.getBoundingClientRect().top < innerHeight * 0.3).pop();
+      for (const [id, a] of enlaces) a.toggleAttribute("data-activo", id === actual?.id);
+    };
+    addEventListener("scroll", () => { if (!pendiente) { pendiente = true; requestAnimationFrame(marcar); } }, { passive: true });
+    marcar();
+  }
+</script>
+
+<style>
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  ol ol {
+    padding-left: 12px;
+  }
+  a {
+    display: block;
+    padding: 4px 0 4px 12px;
+    border-left: 2px solid transparent;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.4;
+    text-decoration: none;
+    text-wrap: pretty;
+  }
+  a:hover,
+  a[data-activo] {
+    color: var(--strong);
+  }
+  a[data-activo] {
+    border-left-color: var(--accent);
+  }
+
+  .indice-movil {
+    margin: 0 0 32px;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .indice-movil summary {
+    cursor: pointer;
+    color: var(--strong);
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .indice-movil ol {
+    margin-top: 8px;
+  }
+  .indice ol {
+    border-left: 1px solid var(--line);
+  }
+  .indice ol ol {
+    border-left: 0;
+  }
+  .indice a {
+    margin-left: -1px;
+  }
+
+  .indice {
+    display: none;
+  }
+  @media (min-width: 1280px) {
+    .indice-movil {
+      display: none;
+    }
+    .indice {
+      display: block;
+      position: fixed;
+      top: 120px;
+      left: calc(50% + var(--measure) / 2 + 56px);
+      width: 220px;
+      max-height: calc(100vh - 160px);
+      overflow-y: auto;
+    }
+    .indice .rotulo {
+      margin: 0 0 10px;
+    }
+  }
+</style>

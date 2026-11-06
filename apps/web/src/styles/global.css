@@ -1,0 +1,234 @@
+/* Estilos base del sitio. Los tokens (colores, tipografías) vienen de @niltontaco/tokens. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--text);
+  font: 17px/1.7 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--strong);
+  text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--strong);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+kbd {
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--strong);
+  font-size: 0.8em;
+}
+
+.saltar {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--strong);
+  color: var(--page);
+  z-index: 10;
+}
+.saltar:focus {
+  top: 12px;
+}
+
+/* Contenedores */
+.contenedor {
+  width: min(var(--wide), 100%);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* Etiqueta pequeña en mayúsculas, estilo de las figuras */
+.rotulo {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Código con Shiki en dos temas (astro.config: defaultColor: false) */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+:root[data-theme="dark"] .astro-code,
+:root[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .astro-code,
+  :root:not([data-theme="light"]) .astro-code span {
+    color: var(--shiki-dark);
+    background-color: var(--shiki-dark-bg);
+  }
+}
+/* Marco de los bloques de código (lib/codigo.mjs): cabecera con título y botón Copiar */
+.codigo {
+  margin: 1.6em 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.codigo-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.codigo-titulo {
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.codigo-titulo.es-archivo {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--strong);
+}
+.codigo[data-terminal] .codigo-titulo::before {
+  content: "$ ";
+  color: var(--accent);
+}
+.codigo-copiar {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: 500 12.5px/1 var(--font-sans);
+  cursor: pointer;
+}
+.codigo-copiar:hover {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--strong);
+}
+.codigo-copiar[data-copiado] {
+  color: var(--accent);
+}
+.codigo .astro-code {
+  margin: 0;
+  padding: 14px 0;
+  border: 0;
+  border-radius: 0;
+  overflow-x: auto;
+  line-height: 1.65;
+  font-size: 14.5px;
+  background-color: transparent !important;
+}
+.codigo .astro-code code {
+  display: block;
+  min-width: max-content;
+}
+.codigo .astro-code .line {
+  display: inline-block;
+  width: 100%;
+  padding: 0 18px;
+}
+.astro-code span {
+  background-color: transparent !important;
+}
+/* Numeración de líneas: ```lang lineas */
+.astro-code[data-lineas] code {
+  counter-reset: linea;
+}
+.astro-code[data-lineas] .line::before {
+  counter-increment: linea;
+  content: counter(linea);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 16px;
+  text-align: right;
+  color: var(--muted);
+  opacity: 0.6;
+}
+/* [!code highlight], [!code ++], [!code --] */
+.astro-code .line.highlighted {
+  background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.astro-code .line.diff.add {
+  background: color-mix(in srgb, #2da44e 14%, transparent) !important;
+}
+.astro-code .line.diff.remove {
+  background: color-mix(in srgb, #cf222e 12%, transparent) !important;
+  opacity: 0.75;
+}
+
+/* Transición suave al navegar entre páginas (navegadores que la soportan; el resto navega normal) */
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

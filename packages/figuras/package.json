@@ -1,0 +1,14 @@
+{
+  "name": "@niltontaco/figuras",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Figuras isométricas interactivas (kit anatomy) que se insertan en el diario.",
+  "exports": {
+    "./dist/*": "./dist/*"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  }
+}

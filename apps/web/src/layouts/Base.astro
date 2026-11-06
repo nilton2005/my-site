@@ -1,0 +1,88 @@
+---
+import "@niltontaco/tokens/tokens.css";
+import "../styles/global.css";
+import Seo from "../components/Seo.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import Paleta from "../components/Paleta.astro";
+import { SITE } from "../config";
+
+interface Props {
+  title: string;
+  description?: string;
+  /** URL absoluta de la imagen para redes. Por defecto, /og.png. */
+  image?: string;
+  imageAlt?: string;
+  type?: "website" | "article";
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const { description = SITE.description, image = new URL("/og.png", Astro.site).href, ...rest } = Astro.props;
+---
+
+<!doctype html>
+<html lang={SITE.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f2f2ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0b0b" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="generator" content={Astro.generator} />
+    <Seo description={description} image={image} {...rest} />
+    <script is:inline>
+      // Antes de pintar: tema guardado o, si no hay, el del sistema. Así no hay parpadeo.
+      (() => {
+        let tema = null;
+        try { tema = localStorage.getItem("tema"); } catch {}
+        if (tema !== "light" && tema !== "dark") tema = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = tema;
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+    <Header />
+    <main id="contenido">
+      <slot />
+    </main>
+    <Footer />
+    <Paleta />
+    <script>
+      // Las figuras (.iso[data-figura]) siguen el tema del sitio; el botón alterna y lo recuerda.
+      const raiz = document.documentElement;
+      const aplicar = () => {
+        for (const figura of document.querySelectorAll<HTMLElement>(".iso[data-figura]")) figura.dataset.theme = raiz.dataset.theme ?? "light";
+      };
+      aplicar();
+      document.querySelector("[data-cambiar-tema]")?.addEventListener("click", () => {
+        raiz.dataset.theme = raiz.dataset.theme === "dark" ? "light" : "dark";
+        try { localStorage.setItem("tema", raiz.dataset.theme); } catch {}
+        aplicar();
+      });
+
+      // Botón «Copiar» de los bloques de código. En la terminal copia solo los comandos (sin «$» ni la salida).
+      document.addEventListener("click", async (e) => {
+        const boton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-copiar]");
+        if (!boton) return;
+        const marco = boton.closest(".codigo");
+        const lineas = [...(marco?.querySelectorAll<HTMLElement>(".line") ?? [])].map((l) => l.textContent ?? "");
+        const comandos = lineas.filter((l) => l.startsWith("$ ")).map((l) => l.slice(2));
+        const texto = marco?.hasAttribute("data-terminal") && comandos.length ? comandos.join("\n") : lineas.join("\n");
+        try {
+          await navigator.clipboard.writeText(texto);
+          boton.textContent = "Copiado";
+          boton.dataset.copiado = "";
+        } catch {
+          boton.textContent = "No se pudo copiar";
+        }
+        setTimeout(() => {
+          boton.textContent = "Copiar";
+          delete boton.dataset.copiado;
+        }, 1600);
+      });
+    </script>
+  </body>
+</html>

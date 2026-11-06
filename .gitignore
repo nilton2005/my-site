@@ -1,0 +1,22 @@
+# dependencias
+node_modules/
+
+# salidas de compilación
+dist/
+.astro/
+
+# variables de entorno
+.env
+.env.*
+!.env.example
+
+# documentos personales (CV, etc.): no se suben al repositorio
+*.pdf
+
+# logs
+*.log
+
+# sistema y editores
+.DS_Store
+Thumbs.db
+.idea/

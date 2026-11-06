@@ -1,0 +1,9 @@
+{
+  "name": "@niltontaco/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Colores, tipografías y espacios compartidos por todas las apps (mismo papel y tinta que las figuras).",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}

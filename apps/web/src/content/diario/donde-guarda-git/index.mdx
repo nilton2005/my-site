@@ -1,0 +1,140 @@
+---
+titulo: "¿Dónde guarda Git tu código?"
+descripcion: "Git no guarda archivos: guarda contenido. Sigue a hola.js desde tu carpeta hasta .git/objects/, pasando por el hash SHA-1, con comandos que puedes reproducir."
+fecha: 2026-10-30
+serie:
+  nombre: "Git por dentro"
+  orden: 1
+etiquetas: ["git", "sha-1", "git internals", "backend"]
+imagen: ./imagen.png
+imagenAlt: 'Figura isométrica: una hoja con console.log("hola") sale de la máquina git hash-object con el hash 84 72c73b5ad6… estampado, camino al archivador .git/objects/'
+---
+
+import DondeGuardaGit from "../../../components/figuras/DondeGuardaGit.astro";
+import Nota from "../../../components/Nota.astro";
+
+Haces `git add hola.js` y el archivo «entra» a Git. Pero ¿a dónde, exactamente? Si abres la carpeta oculta `.git` encontrarás un directorio `objects/` lleno de carpetas de dos caracteres y archivos con nombres de 38. Ahí está tu código, aunque no con el nombre que tú le pusiste.
+
+La respuesta corta: **Git es una base de datos clave-valor**. El valor es el contenido de tu archivo y la clave es un hash calculado a partir de ese contenido. La figura muestra el recorrido completo: pulsa <kbd>Enter</kbd> o haz clic en la máquina para procesar la hoja, y haz clic en la hoja para cambiar una letra.
+
+<DondeGuardaGit />
+
+## 1. Git guarda el contenido, no el archivo
+
+Un archivo tiene dos cosas: un **nombre** (`hola.js`) y un **contenido** (`console.log("hola");` más un salto de línea: 21 bytes). Git los guarda por separado. El contenido va a un objeto de tipo **blob**; el nombre lo guarda otro objeto, el *tree*, que veremos en el próximo artículo.
+
+Por eso, en la figura, el letrero `hola.js` se queda en la mesa y solo viaja la hoja. La consecuencia es directa: si copias el archivo con otro nombre, Git calcula exactamente el mismo hash, y no guarda nada nuevo.
+
+```bash
+$ cp hola.js copia.js
+$ git hash-object hola.js copia.js
+8472c73b5ad6a5727750f015fbff152a72ecea74
+8472c73b5ad6a5727750f015fbff152a72ecea74
+```
+
+## 2. El hash: la huella del contenido
+
+Para calcular la clave, Git no usa solo tu contenido. Le antepone una cabecera con el tipo y el tamaño: `blob 21` seguido de un byte nulo (`\0`). Lo que entra a SHA-1 es esto:
+
+```text
+blob 21\0console.log("hola");\n
+```
+
+Puedes comprobarlo sin Git, con cualquier calculadora de SHA-1:
+
+```bash
+$ printf 'console.log("hola");\n' > hola.js
+$ git hash-object hola.js
+8472c73b5ad6a5727750f015fbff152a72ecea74
+$ printf 'blob 21\0console.log("hola");\n' | sha1sum
+8472c73b5ad6a5727750f015fbff152a72ecea74  -
+```
+
+<Nota titulo="Ojo en Windows">
+  Si tu editor guarda el archivo con saltos de línea CRLF, el archivo mide 22 bytes y el cálculo manual con `sha1sum` dará otro resultado. Con `printf`, como arriba, escribes exactamente esos bytes y obtienes los mismos hashes.
+</Nota>
+
+### Qué pasa dentro de SHA-1
+
+Sin entrar en la matemática, la máquina de la figura muestra los pasos reales del algoritmo:
+
+1. **Relleno.** El mensaje (8 bytes de cabecera + 21 de contenido = 29 bytes) se completa hasta un múltiplo de 64 bytes, es decir, de 512 bits. Este cabe en un solo bloque.
+2. **Rondas.** SHA-1 trabaja con cinco palabras de 32 bits (A–E en el tablero) y las mezcla con el bloque durante 80 rondas. El tambor de arriba cuenta esas rondas.
+3. **Resultado.** Al terminar el bloque, las cinco palabras se suman a los valores con los que empezó. Juntas son 5 × 32 = 160 bits, que en hexadecimal son los 40 caracteres del hash.
+
+De todo esto, a Git le importan dos propiedades. La primera: es **determinista**. El mismo contenido da el mismo hash en cualquier computadora, sin que nadie se ponga de acuerdo. La segunda: tiene **efecto avalancha**. Cambia una sola letra y el hash cambia casi entero:
+
+```bash
+$ printf 'console.log("Hola");\n' | git hash-object --stdin
+1205862a36ce6a8828b9e4072113870b3be8df7b
+```
+
+Solo cambiamos la `h` por una `H`, y 38 de los 40 caracteres son distintos.
+
+## 3. Dónde termina: `.git/objects/84/72c73b…`
+
+`git hash-object` solo calcula. Con `-w` (*write*) además guarda el objeto. Es lo que hace `git add` por ti, que después anota el nombre del archivo en el índice.
+
+```bash
+$ git init
+$ git hash-object -w hola.js
+8472c73b5ad6a5727750f015fbff152a72ecea74
+$ ls .git/objects/84/
+72c73b5ad6a5727750f015fbff152a72ecea74
+```
+
+Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`, así que ninguna termina con miles de archivos sueltos. En la figura es el cajón de la fila 8, columna 4.
+
+Git te deja leer el objeto de vuelta:
+
+```bash
+$ git cat-file -t 8472c73b   # tipo
+blob
+$ git cat-file -s 8472c73b   # tamaño en bytes
+21
+$ git cat-file -p 8472c73b   # contenido
+console.log("hola");
+```
+
+### Por dentro, comprimido con zlib
+
+El archivo en disco no es texto plano: es la cabecera más el contenido, comprimidos con zlib. Con Node.js lo abres en una línea:
+
+```bash
+$ node -e "const fs=require('fs'),zlib=require('zlib');console.log(JSON.stringify(zlib.inflateSync(fs.readFileSync('.git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74')).toString()))"
+"blob 21\u0000console.log(\"hola\");\n"
+```
+
+Ahí está la cabecera `blob 21`, el byte nulo (`\u0000`) y tu código. El nombre `hola.js` no aparece por ninguna parte.
+
+## En resumen
+
+<div class="tabla">
+
+| Etapa | Qué pasa | Comando |
+| --- | --- | --- |
+| Tu archivo | Tiene nombre y contenido; al blob solo le importa el contenido | — |
+| El hash | SHA-1 de `blob <bytes>\0` + contenido: 40 caracteres | `git hash-object` |
+| El guardado | En `.git/objects/<2 caracteres>/<38 caracteres>`, comprimido con zlib | `git hash-object -w` (o `git add`) |
+
+</div>
+
+## Pruébalo tú
+
+En una carpeta vacía:
+
+```bash
+git init
+printf 'console.log("hola");\n' > hola.js
+git hash-object -w hola.js        # 8472c73b…
+ls .git/objects/84/
+git cat-file -p 8472c73b
+cp hola.js copia.js
+git hash-object copia.js          # el mismo hash: no se guarda nada nuevo
+```
+
+Git también puede usar SHA-256 en lugar de SHA-1 (`git init --object-format=sha256`). La idea es la misma, con hashes de 64 caracteres.
+
+## Lo que viene
+
+Si el blob no tiene nombre, ¿dónde guarda Git que ese contenido se llama `hola.js`? En el próximo artículo de **Git por dentro**: los *trees*, el objeto que convierte un montón de blobs en una carpeta.

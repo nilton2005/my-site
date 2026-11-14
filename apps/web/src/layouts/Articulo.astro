@@ -3,11 +3,12 @@ import { getImage } from "astro:assets";
 import type { MarkdownHeading } from "astro";
 import Base from "./Base.astro";
 import Indice from "../components/Indice.astro";
-import LineaDeTiempo from "../components/LineaDeTiempo.astro";
+import MapaSerie from "../components/MapaSerie.astro";
+import UbicacionSerie from "../components/UbicacionSerie.astro";
 import { AUTHOR, PERFILES, SITE } from "../config";
 import { RUTAS, UI } from "../i18n";
 import { fechaIso, fechaLarga, getArticulos, minutosDeLectura, traduccionDe, urlDe, type Articulo } from "../lib/diario";
-import { serieDe } from "../series";
+import { serieDe, urlSerie } from "../series";
 
 interface Props {
   articulo: Articulo;
@@ -17,6 +18,7 @@ interface Props {
 const { articulo, headings } = Astro.props;
 const { titulo, descripcion, fecha, actualizado, serie, etiquetas, imagen, imagenAlt, idioma } = articulo.data;
 const t = UI[idioma].articulo;
+const ts = UI[idioma].serie;
 const rutas = RUTAS[idioma];
 const traduccion = await traduccionDe(articulo);
 const todos = await getArticulos(idioma);
@@ -66,9 +68,10 @@ const jsonLd = {
     <header class="encabezado">
       <p class="rotulo">
         <a href={rutas.diario}>{UI[idioma].nav.diario}</a>
-        {serie && <span> / {serie.nombre} · {String(serie.orden).padStart(2, "0")}</span>}
+        {claveSerie && <span> / <a href={urlSerie(claveSerie, idioma)}>{(serie ?? padre?.data.serie)!.nombre}</a>{serie && ` · ${String(serie.orden).padStart(2, "0")}`}</span>}
         {padre && <span> / {t.ramaDe} <a href={urlDe(padre)}>{padre.data.titulo}</a></span>}
       </p>
+      {claveSerie && <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="cabecera" />}
       <h1>{titulo}</h1>
       <p class="entrada">{descripcion}</p>
       <p class="meta">
@@ -103,11 +106,15 @@ const jsonLd = {
         </aside>
       )
     }
+    {claveSerie && <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="pie" />}
     {
       claveSerie && (
         <aside class="serie" data-pagefind-ignore>
-          <p class="rotulo">{t.serieTitulo} · {(serie ?? padre!.data.serie)!.nombre}</p>
-          <LineaDeTiempo serie={claveSerie} idioma={idioma} actual={articulo.id} />
+          <p class="rotulo">
+            {ts.mapa} · {(serie ?? padre!.data.serie)!.nombre}
+            <a class="ver" href={urlSerie(claveSerie, idioma)}>{ts.abrirMapa} →</a>
+          </p>
+          <MapaSerie serie={claveSerie} idioma={idioma} actual={articulo.id} leyenda />
         </aside>
       )
     }
@@ -288,8 +295,16 @@ const jsonLd = {
     background: var(--surface);
   }
   .serie .rotulo {
-    margin: 0 0 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin: 0 0 18px;
     color: var(--accent);
+  }
+  .serie .ver {
+    text-transform: none;
+    letter-spacing: 0;
   }
 
   .cierre {

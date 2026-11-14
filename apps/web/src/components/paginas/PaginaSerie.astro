@@ -1,0 +1,68 @@
+---
+// Página del mapa de una serie: /diario/serie/<slug>/ y /en/journal/series/<slug>/.
+// Es la «portada» de la serie: el hilo de la historia y todo el camino con sus subartículos.
+import Base from "../../layouts/Base.astro";
+import MapaSerie from "../MapaSerie.astro";
+import { SITE } from "../../config";
+import { idiomaDe, otroIdioma, UI } from "../../i18n";
+import { resolverSerie } from "../../lib/serie";
+import { SERIES, urlSerie } from "../../series";
+
+interface Props {
+  clave: string;
+}
+
+const { clave } = Astro.props;
+const idioma = idiomaDe(Astro.currentLocale);
+const t = UI[idioma].serie;
+const serie = SERIES[clave]!;
+const nombre = serie.nombre[idioma];
+const url = new URL(urlSerie(clave, idioma), Astro.site).href;
+const partes = await resolverSerie(clave, idioma);
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "CreativeWorkSeries",
+  name: nombre,
+  description: serie.hilo[idioma],
+  inLanguage: idioma,
+  url,
+  hasPart: partes.filter((p) => p.estado === "publicado" && p.url).map((p) => ({ "@type": "BlogPosting", headline: p.titulo, url: new URL(p.url!, Astro.site).href })),
+};
+---
+
+<Base title={`${nombre} · ${SITE.name}`} description={serie.hilo[idioma]} jsonLd={jsonLd} alternate={urlSerie(clave, otroIdioma(idioma))}>
+  <section class="contenedor">
+    <p class="rotulo">{t.rotulo}</p>
+    <h1>{nombre}</h1>
+    <p class="entrada">{serie.hilo[idioma]}</p>
+    <p class="intro">{t.paginaIntro}</p>
+    <MapaSerie serie={clave} idioma={idioma} leyenda />
+  </section>
+</Base>
+
+<style>
+  section {
+    padding-top: clamp(24px, 6vw, 64px);
+    padding-bottom: 32px;
+  }
+  h1 {
+    margin: 8px 0 14px;
+    font-size: clamp(2rem, 6vw, 3rem);
+  }
+  .entrada {
+    max-width: 60ch;
+    margin: 0 0 12px;
+    color: var(--strong);
+    font-size: 1.2rem;
+    line-height: 1.5;
+  }
+  .intro {
+    max-width: 60ch;
+    margin: 0 0 32px;
+    color: var(--text);
+  }
+  section :global(.mapa) {
+    max-width: 680px;
+  }
+</style>

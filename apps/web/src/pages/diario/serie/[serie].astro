@@ -1,0 +1,12 @@
+---
+import PaginaSerie from "../../../components/paginas/PaginaSerie.astro";
+import { SERIES } from "../../../series";
+
+export function getStaticPaths() {
+  return Object.entries(SERIES).map(([clave, serie]) => ({ params: { serie: serie.slug.es }, props: { clave } }));
+}
+
+const { clave } = Astro.props;
+---
+
+<PaginaSerie clave={clave} />

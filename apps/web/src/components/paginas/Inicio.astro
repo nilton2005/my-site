@@ -1,10 +1,11 @@
 ---
 import { Image } from "astro:assets";
 import Base from "../../layouts/Base.astro";
-import LineaDeTiempo from "../LineaDeTiempo.astro";
+import MapaSerie from "../MapaSerie.astro";
 import { AUTHOR, PERFILES, SITE } from "../../config";
 import { idiomaDe, otroIdioma, RUTAS, UI } from "../../i18n";
 import { fechaIso, fechaLarga, getArticulos, minutosDeLectura, urlDe } from "../../lib/diario";
+import { urlSerie } from "../../series";
 
 const idioma = idiomaDe(Astro.currentLocale);
 const t = UI[idioma].inicio;
@@ -105,8 +106,9 @@ const jsonLd = {
     </div>
 
     <div class="celda serie" data-brillo>
-      <p class="rotulo">{t.rotuloSerie} · {t.serie}</p>
-      <LineaDeTiempo serie="git-por-dentro" idioma={idioma} compacta />
+      <p class="rotulo"><a href={urlSerie("git-por-dentro", idioma)}>{t.rotuloSerie} · {t.serie}</a></p>
+      <MapaSerie serie="git-por-dentro" idioma={idioma} compacta />
+      <p class="ver-mapa"><a href={urlSerie("git-por-dentro", idioma)}>{UI[idioma].serie.abrirMapa} →</a></p>
     </div>
   </section>
 </Base>
@@ -307,6 +309,15 @@ const jsonLd = {
   .quien,
   .serie {
     grid-column: span 3;
+  }
+  .ver-mapa {
+    margin: 14px 0 0 !important;
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  .celda .rotulo a {
+    color: inherit;
+    text-decoration: none;
   }
   .stack {
     display: flex;

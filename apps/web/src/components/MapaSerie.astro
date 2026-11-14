@@ -1,0 +1,366 @@
+---
+// Mapa de una serie dibujado como un `git log --graph`: el camino principal son los artículos (nodos grandes) y
+// los subartículos son ramas que salen de una parte, corren en paralelo y vuelven a unirse al camino.
+// Línea continua = ya publicado; punteada = todavía no. Los datos salen de src/series.ts.
+//   <MapaSerie serie="git-por-dentro" idioma="es" actual="donde-guarda-git" leyenda />
+//   <MapaSerie serie="git-por-dentro" idioma="es" compacta />   ← solo el camino principal (portada)
+import { UI, type Idioma } from "../i18n";
+import { resolverSerie, type ItemSerie, type ParteResuelta } from "../lib/serie";
+
+interface Props {
+  serie: string;
+  idioma: Idioma;
+  /** `id` del artículo que se está leyendo, para marcarlo. */
+  actual?: string;
+  compacta?: boolean;
+  /** Muestra la explicación de qué es cada cosa del dibujo. */
+  leyenda?: boolean;
+}
+
+const { serie, idioma, actual, compacta = false, leyenda = false } = Astro.props;
+const t = UI[idioma].serie;
+const partes = await resolverSerie(serie, idioma);
+
+const esActual = (i: ItemSerie) => !!actual && i.id === actual;
+const activa = (p: ParteResuelta) => esActual(p) || p.ramas.some(esActual);
+const etiqueta = (i: ItemSerie) => (esActual(i) ? t.estasAqui : i.estado === "proximamente" ? t.proximamente : i.estado === "borrador" ? t.borrador : "");
+/** El tramo de camino que lleva a la parte siguiente se dibuja continuo solo si esa parte ya está publicada. */
+const tramo = (p: ParteResuelta) => (p.tramo === "publicado" ? "hecho" : "pendiente");
+const ramaViva = (p: ParteResuelta) => (p.ramas.some((r) => r.estado === "publicado") ? "hecho" : "pendiente");
+---
+
+<div class:list={["mapa", { compacta }]}>
+  {
+    leyenda && !compacta && (
+      <ul class="leyenda" aria-label={t.mapa}>
+        <li><span class="muestra parte-m" aria-hidden="true" />{t.leyendaParte}</li>
+        <li><span class="muestra sub-m" aria-hidden="true" />{t.leyendaSub}</li>
+        <li><span class="muestra plan-m" aria-hidden="true" />{t.leyendaPlan}</li>
+      </ul>
+    )
+  }
+  <ol class="tronco">
+    {
+      partes.map((p) => (
+        <li class:list={["parte", p.estado, { activa: activa(p) }]} data-tramo={tramo(p)}>
+          <span class="punto" aria-hidden="true" />
+          <div class="contenido">
+            <p class="num">{t.parte} {String(p.orden).padStart(2, "0")}</p>
+            <p class="titulo">
+              {p.url ? <a href={p.url} aria-current={esActual(p) ? "page" : undefined}>{p.titulo}</a> : <span>{p.titulo}</span>}
+              {etiqueta(p) && <span class:list={["etiqueta", { aqui: esActual(p) }]}>{etiqueta(p)}</span>}
+            </p>
+            {!compacta && <p class="hilo">{p.hilo}</p>}
+          </div>
+          {
+            !compacta && p.ramas.length > 0 && (
+              <div class="subs" data-rama={ramaViva(p)}>
+                <svg class="giro" viewBox="0 0 30 26" aria-hidden="true"><path d="M1 0 C1 15 29 10 29 26" /></svg>
+                <ul>
+                  {p.ramas.map((r) => (
+                    <li class:list={["sub", r.estado, { activa: esActual(r) }]}>
+                      <span class="sub-punto" aria-hidden="true" />
+                      <span class="sub-texto">
+                        <span class="sub-rotulo">{t.subarticulo}</span>
+                        {r.url ? <a href={r.url} aria-current={esActual(r) ? "page" : undefined}>{r.titulo}</a> : <span class="sub-titulo">{r.titulo}</span>}
+                        {etiqueta(r) && <span class:list={["etiqueta", { aqui: esActual(r) }]}>{etiqueta(r)}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <svg class="giro vuelta" viewBox="0 0 30 26" aria-hidden="true"><path d="M29 0 C29 15 1 10 1 26" /></svg>
+              </div>
+            )
+          }
+        </li>
+      ))
+    }
+  </ol>
+</div>
+
+<style>
+  .mapa {
+    --trazo: var(--accent);
+    --pendiente: var(--line-strong);
+  }
+  .tronco {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* ── camino principal: una columna de 30 px para el nodo y la línea, y el contenido al lado ── */
+  .parte {
+    position: relative;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    column-gap: 12px;
+    padding-bottom: 24px;
+  }
+  .parte:last-child {
+    padding-bottom: 0;
+  }
+  /* el tramo de línea que baja desde el nodo hasta el siguiente */
+  .parte::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 22px;
+    bottom: -2px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--trazo);
+  }
+  .parte[data-tramo="pendiente"]::before {
+    background: repeating-linear-gradient(to bottom, var(--pendiente) 0 6px, transparent 6px 11px);
+  }
+  .parte:last-child::before {
+    display: none;
+  }
+
+  .punto {
+    z-index: 1;
+    box-sizing: border-box;
+    width: 18px;
+    height: 18px;
+    margin: 3px 0 0 6px;
+    border: 3px solid var(--trazo);
+    border-radius: 50%;
+    background: var(--trazo);
+  }
+  .parte.proximamente .punto {
+    border-color: var(--pendiente);
+    background: var(--page);
+  }
+  .parte.borrador .punto {
+    border-style: dashed;
+    border-color: var(--trazo);
+    background: var(--page);
+  }
+  .parte.activa .punto {
+    box-shadow: 0 0 0 5px var(--accent-soft);
+  }
+
+  .num {
+    margin: 0 0 2px;
+    color: var(--muted);
+    font: 600 12px/1.4 var(--font-mono);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .parte.activa > .contenido .num {
+    color: var(--accent);
+  }
+  .titulo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    margin: 0;
+    color: var(--strong);
+    font-size: 16.5px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .parte.proximamente > .contenido .titulo {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .titulo a,
+  .sub-texto a {
+    color: inherit;
+  }
+  .etiqueta {
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font: 500 11.5px/1.7 var(--font-mono);
+    white-space: nowrap;
+  }
+  .etiqueta.aqui {
+    border-color: transparent;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .hilo {
+    margin: 4px 0 0;
+    color: var(--text);
+    font-size: 14.5px;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+  .parte.proximamente > .contenido .hilo {
+    color: var(--muted);
+  }
+
+  /* ── subartículos: una rama que sale del camino, corre en paralelo y vuelve a unirse ── */
+  .subs {
+    grid-column: 1 / -1;
+    margin-top: 14px;
+    --lane: var(--trazo);
+  }
+  .subs[data-rama="pendiente"] {
+    --lane: var(--pendiente);
+  }
+  .giro {
+    display: block;
+    width: 30px;
+    height: 26px;
+    margin-left: 15px; /* arranca en el centro de la línea principal */
+    fill: none;
+    stroke: var(--lane);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .subs[data-rama="pendiente"] .giro {
+    stroke-dasharray: 5 6;
+  }
+  .subs ul {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* la línea de la rama, paralela al camino principal */
+  .subs ul::before {
+    content: "";
+    position: absolute;
+    left: 43px;
+    top: -1px;
+    bottom: -1px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--lane);
+  }
+  .subs[data-rama="pendiente"] ul::before {
+    background: repeating-linear-gradient(to bottom, var(--pendiente) 0 6px, transparent 6px 11px);
+  }
+  .sub {
+    position: relative;
+    padding: 5px 0 5px 68px;
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+  .sub-punto {
+    position: absolute;
+    left: 38px;
+    top: 10px;
+    box-sizing: border-box;
+    width: 13px;
+    height: 13px;
+    border: 3px solid var(--lane);
+    border-radius: 50%;
+    background: var(--lane);
+  }
+  .sub.proximamente .sub-punto {
+    border-color: var(--pendiente);
+    background: var(--page);
+  }
+  .sub.borrador .sub-punto {
+    border-style: dashed;
+    background: var(--page);
+  }
+  .sub.activa .sub-punto {
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .sub-texto {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+  }
+  .sub-rotulo {
+    color: var(--muted);
+    font: 600 10.5px/1.6 var(--font-mono);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .sub.proximamente {
+    color: var(--muted);
+  }
+  .sub.activa a {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .vuelta {
+    margin-top: 0;
+  }
+
+  /* ── leyenda ── */
+  .leyenda {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 22px;
+    padding: 12px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    list-style: none;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .leyenda li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .muestra {
+    flex: none;
+    box-sizing: border-box;
+    width: 30px;
+    height: 14px;
+    display: inline-block;
+  }
+  .parte-m {
+    border-radius: 999px;
+    background: linear-gradient(var(--accent), var(--accent)) center / 100% 3px no-repeat;
+    position: relative;
+  }
+  .parte-m::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: -2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .sub-m {
+    background: radial-gradient(circle at 15px 7px, var(--accent) 0 5px, transparent 5.5px), linear-gradient(var(--accent), var(--accent)) center / 100% 3px no-repeat;
+  }
+  .plan-m {
+    background: repeating-linear-gradient(to right, var(--pendiente) 0 6px, transparent 6px 11px) center / 100% 3px no-repeat;
+  }
+
+  /* ── versión compacta (portada): solo el camino principal ── */
+  .compacta .parte {
+    grid-template-columns: 30px 1fr;
+    padding-bottom: 14px;
+  }
+  .compacta .parte::before {
+    top: 20px;
+  }
+  .compacta .contenido {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+  }
+  .compacta .num {
+    margin: 0;
+  }
+  .compacta .titulo {
+    font-size: 15px;
+  }
+  /* en la portada el punto hueco y el texto atenuado ya dicen «próximamente»; la etiqueta queda solo para lectores de pantalla */
+  .compacta .etiqueta:not(.aqui) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>

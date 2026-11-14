@@ -15,7 +15,7 @@ const { pregunta, pistas = [], href, enlace } = Astro.props;
 const t = UI[idiomaDe(Astro.currentLocale)].pausa;
 ---
 
-<aside class="pausa">
+<aside class="pausa" id="pausa">
   <p class="rotulo">{t.titulo}</p>
   <p class="pregunta">{pregunta}</p>
   <p class="tiempo">{t.tiempo}</p>
@@ -32,6 +32,7 @@ const t = UI[idiomaDe(Astro.currentLocale)].pausa;
 
 <style>
   .pausa {
+    scroll-margin-top: 24px; /* al volver desde un subartículo (#pausa), no queda pegada al borde */
     margin: 2.2em 0;
     padding: 18px 22px 16px;
     border: 1px dashed var(--line-strong);

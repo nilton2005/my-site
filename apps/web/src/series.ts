@@ -2,7 +2,7 @@
 // Esta es la ÚNICA fuente del plan: la línea de tiempo (components/LineaDeTiempo.astro) la lee y la cruza con
 // los artículos reales. Una parte con `id` enlaza a su artículo cuando existe y está publicado; si no, se ve como
 // «próximamente». Para añadir una parte o una rama: agrégala aquí y escribe sus dos artículos (ES y EN).
-import type { Idioma } from "./i18n";
+import { RUTAS, type Idioma } from "./i18n";
 
 type Texto = Record<Idioma, string>;
 
@@ -26,6 +26,8 @@ export interface Parte {
 export interface Serie {
   /** Debe coincidir con `serie.nombre` del frontmatter de cada artículo. */
   nombre: Texto;
+  /** Último tramo de la URL de la página del mapa: /diario/serie/<slug>/ y /en/journal/series/<slug>/. */
+  slug: Texto;
   hilo: Texto;
   partes: Parte[];
 }
@@ -33,6 +35,7 @@ export interface Serie {
 export const SERIES: Record<string, Serie> = {
   "git-por-dentro": {
     nombre: { es: "Git por dentro", en: "Inside Git" },
+    slug: { es: "git-por-dentro", en: "inside-git" },
     hilo: {
       es: "Seguimos a un solo archivo, hola.js, desde que lo guardas hasta que Git lo empaqueta. Al final lo reconstruimos en código.",
       en: "We follow a single file, hola.js, from the moment you save it until Git packs it. At the end we rebuild it in code.",
@@ -119,6 +122,10 @@ export const SERIES: Record<string, Serie> = {
     ],
   },
 };
+
+/** URL de la página del mapa de una serie. */
+export const urlSerie = (clave: string, idioma: Idioma): string =>
+  `${RUTAS[idioma].diario}${idioma === "es" ? "serie" : "series"}/${SERIES[clave]!.slug[idioma]}/`;
 
 /** La serie a la que pertenece un nombre de serie del frontmatter (en cualquier idioma). */
 export const serieDe = (nombre: string | undefined): [clave: string, serie: Serie] | undefined =>

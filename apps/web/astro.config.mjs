@@ -4,6 +4,7 @@ import { defineConfig } from "astro/config";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import { transformerNotationDiff, transformerNotationHighlight } from "@shikijs/transformers";
+import { guardiaAvance, viteAvance } from "./src/lib/avance.mjs";
 import { transformerMarco } from "./src/lib/codigo.mjs";
 
 // Cloudflare Pages busca un 404.html en cada carpeta, pero Astro genera en/404/index.html.
@@ -27,7 +28,10 @@ export default defineConfig({
   build: { format: "directory" },
   // Español en la raíz, inglés en /en/. Astro.currentLocale sale de aquí.
   i18n: { defaultLocale: "es", locales: ["es", "en"], routing: { prefixDefaultLocale: false } },
-  integrations: [mdx(), sitemap({ filter: (page) => !page.includes("/og/") && !page.includes("/404") }), error404EnIngles],
+  // guardiaAvance: si un artículo en avance deja pasar algo de la parte cortada, el build falla (ver src/lib/avance.mjs).
+  integrations: [mdx(), sitemap({ filter: (page) => !page.includes("/og/") && !page.includes("/404") }), error404EnIngles, guardiaAvance()],
+  // Artículos en avance: el corte se hace sobre el texto del .mdx antes de compilarlo.
+  vite: { plugins: [viteAvance()] },
   markdown: {
     shikiConfig: {
       // Dos temas: el CSS elige uno según el tema del sitio (ver styles/global.css).

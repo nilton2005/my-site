@@ -101,6 +101,27 @@ La <Dato etiqueta="historia" titulo="Historia de SHA-1" items={historia} /> de S
 - No cuenta para los «min de lectura». **Verifica cada dato antes de ponerlo**: los del artículo 1 se comprobaron con
   `git hash-object`, la documentación de Git y las notas de versión.
 
+## Avances (preview real de un artículo)
+
+Para publicar solo el comienzo de un artículo, con un bloque difuminado y «Próximamente» debajo:
+
+1. En el frontmatter: `avance: true` (y sin `borrador`).
+2. En el `.mdx`, una línea sola `<VistaPrevia />` (con `import VistaPrevia from "…/components/VistaPrevia.astro"`) justo donde se corta.
+
+**El resto NO se oculta: no existe en lo publicado.** Difuminar con CSS no sirve, porque quien abre la consola del navegador
+lo quita y lee todo. Por eso `src/lib/avance.mjs` corta el texto del `.mdx` al compilar (plugin de Vite) y descarta todo lo que
+sigue a la marca: ni el HTML ni el JavaScript lo contienen. Lo difuminado son barras vacías que imitan texto.
+
+- **Alarma de build:** al terminar, `guardiaAvance` busca en el HTML publicado los títulos de la parte cortada. Si aparece
+  alguno, el build **falla** («NO publiques este build»), y como Cloudflare compila con `pnpm build`, no se despliega.
+- Un avance **no** va al RSS, ni es «lo último del diario» de la portada, ni cuenta en los números. Sí aparece en el mapa de la
+  serie (con la etiqueta «avance»), en las listas y en el sitemap.
+- Para publicar el artículo completo: quita `avance: true`. La marca `<VistaPrevia />` deja de hacer nada.
+- **Ojo con el repositorio:** el corte actúa sobre el sitio, no sobre Git. Si el repositorio es público, el texto completo que
+  esté en el `.mdx` se puede leer en GitHub. Si el resto no debe verse, no lo subas: escríbelo en un archivo ignorado por git
+  y pégalo al publicar. Un avance que solo tiene el comienzo (como los subartículos de la ley de los grandes números y de
+  pensar en probabilidades) no tiene nada que filtrar.
+
 ## Series: artículos, subartículos y el mapa
 
 Cada artículo es una pieza corta, pero la serie cuenta una sola historia. Hay dos clases de piezas:

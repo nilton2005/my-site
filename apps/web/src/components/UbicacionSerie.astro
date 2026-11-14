@@ -74,7 +74,7 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
             <p class="enlaces">
               {u.siguiente && (
                 <span class="sigue">
-                  {t.sigue}: {u.siguiente.url ? <a href={u.siguiente.url}>{u.siguiente.titulo}</a> : <span class="pronto">{u.siguiente.titulo} ({t.proximamente})</span>}
+                  {t.sigue}: {u.siguiente.url ? <><a href={u.siguiente.url}>{u.siguiente.titulo}</a>{u.siguiente.estado === "avance" && <span class="pronto"> ({t.avance})</span>}</> : <span class="pronto">{u.siguiente.titulo} ({t.proximamente})</span>}
                 </span>
               )}
               <a href={mapa}>{t.verMapa}</a>
@@ -103,7 +103,7 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
           <>
             <p class="rotulo">{t.siguienteParte} · {t.parte} {num(u.siguiente.orden)}</p>
             {u.siguiente.url ? <a class="gran" href={u.siguiente.url}>{u.siguiente.titulo} →</a> : <p class="gran pronto">{u.siguiente.titulo}</p>}
-            {!u.siguiente.url && <span class="etiqueta">{t.proximamente}</span>}
+            {(!u.siguiente.url || u.siguiente.estado === "avance") && <span class="etiqueta">{u.siguiente.url ? t.avance : t.proximamente}</span>}
             <p class="hilo">{u.siguiente.hilo}</p>
           </>
         )

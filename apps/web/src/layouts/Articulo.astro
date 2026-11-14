@@ -74,6 +74,7 @@ const jsonLd = {
       {claveSerie && <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="cabecera" />}
       <h1>{titulo}</h1>
       <p class="entrada">{descripcion}</p>
+      {articulo.data.avance && <p class="aviso-avance" role="note">{t.avance}</p>}
       <p class="meta">
         <time datetime={fechaIso(fecha)}>{fechaLarga(fecha, idioma)}</time>
         <span aria-hidden="true">·</span>
@@ -98,7 +99,7 @@ const jsonLd = {
           <ul>
             {ramas.map((r) => (
               <li>
-                <a href={urlDe(r)}>{r.data.titulo}</a>
+                <a href={urlDe(r)}>{r.data.titulo}{r.data.avance && <em class="avance-rama"> · {ts.avance}</em>}</a>
                 <span>{r.data.descripcion}</span>
               </li>
             ))}
@@ -189,6 +190,17 @@ const jsonLd = {
     font-size: 1.2rem;
     line-height: 1.55;
     color: var(--text);
+  }
+  .aviso-avance {
+    display: inline-block;
+    margin: 0 0 14px;
+    padding: 2px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: 600 12px/1.8 var(--font-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   .meta {
     display: flex;
@@ -281,6 +293,12 @@ const jsonLd = {
   }
   .ramas li a {
     font-weight: 600;
+  }
+  .ramas .avance-rama {
+    color: var(--muted);
+    font: 500 12px/1 var(--font-mono);
+    font-style: normal;
+    text-transform: uppercase;
   }
   .ramas li span {
     color: var(--muted);

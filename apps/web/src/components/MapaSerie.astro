@@ -23,7 +23,7 @@ const partes = await resolverSerie(serie, idioma);
 
 const esActual = (i: ItemSerie) => !!actual && i.id === actual;
 const activa = (p: ParteResuelta) => esActual(p) || p.ramas.some(esActual);
-const etiqueta = (i: ItemSerie) => (esActual(i) ? t.estasAqui : i.estado === "proximamente" ? t.proximamente : i.estado === "borrador" ? t.borrador : "");
+const etiqueta = (i: ItemSerie) => (esActual(i) ? t.estasAqui : i.estado === "proximamente" ? t.proximamente : i.estado === "borrador" ? t.borrador : i.estado === "avance" ? t.avance : "");
 /** El tramo de camino que lleva a la parte siguiente se dibuja continuo solo si esa parte ya está publicada. */
 const tramo = (p: ParteResuelta) => (p.tramo === "publicado" ? "hecho" : "pendiente");
 const ramaViva = (p: ParteResuelta) => (p.ramas.some((r) => r.estado === "publicado") ? "hecho" : "pendiente");
@@ -132,7 +132,8 @@ const ramaViva = (p: ParteResuelta) => (p.ramas.some((r) => r.estado === "public
     border-color: var(--pendiente);
     background: var(--page);
   }
-  .parte.borrador .punto {
+  .parte.borrador .punto,
+  .parte.avance .punto {
     border-style: dashed;
     border-color: var(--trazo);
     background: var(--page);
@@ -257,7 +258,8 @@ const ramaViva = (p: ParteResuelta) => (p.ramas.some((r) => r.estado === "public
     border-color: var(--pendiente);
     background: var(--page);
   }
-  .sub.borrador .sub-punto {
+  .sub.borrador .sub-punto,
+  .sub.avance .sub-punto {
     border-style: dashed;
     background: var(--page);
   }

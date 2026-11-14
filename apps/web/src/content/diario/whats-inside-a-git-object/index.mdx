@@ -2,7 +2,7 @@
 titulo: "What's inside a Git object?"
 descripcion: "Open an object from .git/objects with cat-file and with Node: the header, the null byte and your code, compressed with zlib. With commands you can reproduce."
 fecha: 2026-11-14
-borrador: true
+avance: true
 idioma: en
 traduccion: que-hay-dentro-de-un-objeto
 serie:
@@ -12,6 +12,7 @@ etiquetas: ["git", "zlib", "git internals", "compression"]
 ---
 
 import Nota from "../../../components/Nota.astro";
+import VistaPrevia from "../../../components/VistaPrevia.astro";
 
 In the [previous article](/en/journal/where-git-stores-your-code/) we followed `hola.js` to its folder: `.git/objects/84/72c73b…`. But we haven't opened the file yet. If you do it with an editor, there's nothing readable. This article is about that: what's inside, and why you can't read it at a glance.
 
@@ -29,6 +30,8 @@ console.log("hola");
 ```
 
 Notice that I only typed the first 8 characters of the hash. That's enough for Git: with the first two it knows which folder to look in, and with the rest it finds the file. That's what we measured in [the branch about the spread](/en/journal/how-git-spreads-its-objects/), where we saw how much that lookup would cost if everything were in a single folder.
+
+<VistaPrevia />
 
 ## 2. But the file on disk isn't readable
 

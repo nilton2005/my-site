@@ -1,0 +1,36 @@
+---
+titulo: "La ley de los grandes números, con gráficas"
+descripcion: "Por qué 10 000 lanzamientos de una moneda se acercan al 50 % y 10 no, y qué tiene que ver con las 256 carpetas de Git. Con gráficas y la matemática detrás."
+fecha: 2026-11-14
+avance: true
+idioma: es
+traduccion: law-of-large-numbers
+rama: donde-guarda-git
+etiquetas: ["probabilidad", "ley de los grandes números", "git internals", "estadística"]
+---
+
+import VistaPrevia from "../../../components/VistaPrevia.astro";
+
+En el subartículo [¿Quién decide en qué carpeta va cada objeto?](/diario/como-reparte-git-sus-objetos/) quedó una frase con letra pequeña: «más parejo» significa más parejo *en proporción*, no en cantidad. Aquí vamos a mirar de dónde sale eso, con la matemática y con gráficas.
+
+## La pregunta
+
+Si lanzas una moneda 10 veces, pueden salir 7 caras y 3 sellos. Si la lanzas 10 000 veces, casi seguro estarás muy cerca del 50 %. ¿Qué cambió? ¿El azar «se compensó» para arreglar el desbalance?
+
+En el experimento de las carpetas apareció algo que parece contradecirlo:
+
+| Objetos | Diferencia entre la carpeta más llena y la más vacía | Diferencia / promedio |
+| --- | --- | --- |
+| 100 000 | 131 | 34 % |
+| 1 000 000 | 296 | 8 % |
+
+La diferencia **creció**, de 131 a 296 objetos, pero en proporción **se achicó**, de 34 % a 8 %. Las dos cosas son ciertas a la vez, y la ley de los grandes números explica por qué.
+
+## Lo que vamos a ver
+
+- El enunciado de la ley, sin letra pequeña.
+- Una simulación de monedas, con gráficas, para ver la proporción acercarse al 50 % mientras la diferencia absoluta se aleja.
+- El desvío típico, que para las carpetas de Git es de unos √(n/256).
+- Cómo se aplica todo esto a Git.
+
+<VistaPrevia />

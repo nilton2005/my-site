@@ -4,7 +4,8 @@ import type { Idioma } from "../i18n";
 import { SERIES } from "../series";
 import { getArticulos, urlDe, type Articulo } from "./diario";
 
-export type Estado = "publicado" | "borrador" | "proximamente";
+/** `avance`: ya existe y se puede abrir, pero solo con el comienzo (ver src/lib/avance.mjs). */
+export type Estado = "publicado" | "borrador" | "avance" | "proximamente";
 
 export interface ItemSerie {
   titulo: string;
@@ -32,7 +33,7 @@ export async function resolverSerie(clave: string, idioma: Idioma): Promise<Part
   const item = (id: string | undefined, titulo: string): ItemSerie => {
     const articulo: Articulo | undefined = id ? porId.get(id) : undefined;
     if (!articulo) return { titulo, estado: "proximamente" };
-    return { titulo: articulo.data.titulo, url: urlDe(articulo), id: articulo.id, estado: articulo.data.borrador ? "borrador" : "publicado" };
+    return { titulo: articulo.data.titulo, url: urlDe(articulo), id: articulo.id, estado: articulo.data.borrador ? "borrador" : articulo.data.avance ? "avance" : "publicado" };
   };
 
   const partes: ParteResuelta[] = serie.partes.map((p) => ({

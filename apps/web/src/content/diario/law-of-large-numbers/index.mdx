@@ -1,0 +1,36 @@
+---
+titulo: "The law of large numbers, with graphs"
+descripcion: "Why 10,000 coin flips get close to 50% and 10 don't, and what that has to do with Git's 256 folders. With graphs and the math behind it."
+fecha: 2026-11-14
+avance: true
+idioma: en
+traduccion: ley-de-los-grandes-numeros
+rama: where-git-stores-your-code
+etiquetas: ["probability", "law of large numbers", "git internals", "statistics"]
+---
+
+import VistaPrevia from "../../../components/VistaPrevia.astro";
+
+In the sub-article [Who decides which folder each object goes in?](/en/journal/how-git-spreads-its-objects/) there was a sentence with fine print: "more even" means more even *in proportion*, not in count. Here we'll look at where that comes from, with the math and with graphs.
+
+## The question
+
+If you flip a coin 10 times, you might get 7 heads and 3 tails. If you flip it 10,000 times, you'll almost surely be very close to 50%. What changed? Did chance "make up for it" to fix the imbalance?
+
+In the folders experiment something showed up that seems to contradict it:
+
+| Objects | Difference between the fullest and the emptiest folder | Difference / average |
+| --- | --- | --- |
+| 100,000 | 131 | 34% |
+| 1,000,000 | 296 | 8% |
+
+The difference **grew**, from 131 to 296 objects, but in proportion it **shrank**, from 34% to 8%. Both things are true at once, and the law of large numbers explains why.
+
+## What we'll look at
+
+- The statement of the law, without the fine print.
+- A coin simulation, with graphs, to watch the proportion approach 50% while the absolute difference drifts away.
+- The typical deviation, which for Git's folders is about √(n/256).
+- How all of this applies to Git.
+
+<VistaPrevia />

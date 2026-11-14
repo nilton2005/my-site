@@ -18,6 +18,9 @@ const diario = defineCollection({
       imagen: image().optional(),
       imagenAlt: z.string().optional(),
       borrador: z.boolean().default(false),
+      // Avance: se publica solo el comienzo, hasta la marca <VistaPrevia />. El resto NO llega al sitio:
+      // se descarta al compilar (src/lib/avance.mjs), no se oculta con CSS.
+      avance: z.boolean().default(false),
       idioma: z.enum(["es", "en"]).default("es"),
       // Carpeta del mismo artículo en el otro idioma: el switch y los hreflang la usan.
       traduccion: z.string().optional(),

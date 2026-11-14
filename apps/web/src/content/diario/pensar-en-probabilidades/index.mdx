@@ -1,0 +1,28 @@
+---
+titulo: "Pensar en probabilidades, no en 0 o 1"
+descripcion: "Git es determinista en cada objeto y estadístico en el conjunto. Qué cambia cuando dejas de pensar solo en verdadero o falso y dejas trabajar a la estadística."
+fecha: 2026-11-14
+avance: true
+idioma: es
+traduccion: thinking-in-probabilities
+rama: donde-guarda-git
+etiquetas: ["probabilidad", "mentalidad", "git internals", "backend"]
+---
+
+import VistaPrevia from "../../../components/VistaPrevia.astro";
+
+En programación es natural pensar en 0 y 1: algo es verdadero o falso, una prueba pasa o falla, un archivo está o no está. Git muestra otra manera de resolver problemas, y la vimos en [¿Quién decide en qué carpeta va cada objeto?](/diario/como-reparte-git-sus-objetos/).
+
+## La idea
+
+Cada objeto de Git es 100 % determinista: el mismo contenido da siempre el mismo hash. Pero el reparto en 256 carpetas no lo decide ni lo cuenta nadie: sale de la estadística. Git confía en que sumar muchas cosas casi aleatorias da un resultado casi parejo. Incluso estima cuántos objetos sueltos tiene mirando una sola carpeta y multiplicando por 256.
+
+Un sistema puede ser exacto en cada pieza y apoyarse en la estadística en el conjunto. Eso es pensar en probabilidades, y no es lo mismo que «no estar seguro».
+
+## Lo que vamos a ver
+
+- Cuándo conviene dejar que la probabilidad trabaje y cuándo no.
+- Ejemplos del backend con código, como una tabla hash y el reparto de carga entre servidores.
+- Qué se gana y qué se paga: la diferencia entre «casi nunca» y «nunca».
+
+<VistaPrevia />

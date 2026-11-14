@@ -1,0 +1,28 @@
+---
+titulo: "Thinking in probabilities, not in 0 or 1"
+descripcion: "Git is deterministic for each object and statistical for the whole set. What changes when you stop thinking only in true or false and let statistics do the work."
+fecha: 2026-11-14
+avance: true
+idioma: en
+traduccion: pensar-en-probabilidades
+rama: where-git-stores-your-code
+etiquetas: ["probability", "mindset", "git internals", "backend"]
+---
+
+import VistaPrevia from "../../../components/VistaPrevia.astro";
+
+In programming it's natural to think in 0 and 1: something is true or false, a test passes or fails, a file is there or it isn't. Git shows another way of solving problems, and we saw it in [Who decides which folder each object goes in?](/en/journal/how-git-spreads-its-objects/).
+
+## The idea
+
+Every Git object is 100% deterministic: the same content always gives the same hash. But the spread over 256 folders is decided by nobody and counted by nobody: it comes from statistics. Git trusts that adding up many almost-random things gives an almost-even result. It even estimates how many loose objects it has by looking at a single folder and multiplying by 256.
+
+A system can be exact in each piece and lean on statistics for the whole. That is thinking in probabilities, and it's not the same as "not being sure".
+
+## What we'll look at
+
+- When it pays to let probability do the work and when it doesn't.
+- Backend examples with code, such as a hash table and spreading load across servers.
+- What you gain and what you pay: the difference between "almost never" and "never".
+
+<VistaPrevia />

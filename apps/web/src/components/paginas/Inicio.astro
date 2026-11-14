@@ -9,7 +9,8 @@ import { urlSerie } from "../../series";
 
 const idioma = idiomaDe(Astro.currentLocale);
 const t = UI[idioma].inicio;
-const articulos = await getArticulos(idioma);
+// Un avance (solo el comienzo) no es «lo último del diario» ni cuenta en los números.
+const articulos = (await getArticulos(idioma)).filter((a) => !a.data.avance);
 const [destacado] = articulos;
 
 // Números reales del diario, calculados al compilar.

@@ -1,0 +1,145 @@
+---
+// Cierre de un artículo en avance: debajo del comienzo, un bloque difuminado con «Próximamente».
+// Uso en MDX, justo donde se corta el artículo (frontmatter `avance: true`):
+//
+//   <VistaPrevia />
+//
+// El corte es REAL: el plugin src/lib/avance.mjs descarta todo lo que viene después de esta marca al compilar,
+// así que el resto del artículo no existe en el HTML ni en el JavaScript publicados. Lo que se ve difuminado son
+// barras vacías que imitan texto: no hay nada oculto que se pueda revelar quitando el efecto en la consola.
+// Si el artículo ya no está en avance, esta marca no dibuja nada.
+import { AUTHOR } from "../config";
+import { idiomaDe, RUTAS, UI } from "../i18n";
+
+interface Props {
+  /** Lo pone el plugin cuando el artículo está en avance; sin él, la marca no hace nada. */
+  activo?: boolean;
+}
+
+const { activo = false } = Astro.props;
+const idioma = idiomaDe(Astro.currentLocale);
+const t = UI[idioma].vistaPrevia;
+
+// Una maqueta de artículo: títulos, párrafos y un bloque de código, solo como formas (anchos en %).
+const maqueta: { tipo: "h" | "p" | "codigo"; anchos: number[] }[] = [
+  { tipo: "h", anchos: [44] },
+  { tipo: "p", anchos: [100, 94, 98, 63] },
+  { tipo: "codigo", anchos: [72, 46, 84, 38] },
+  { tipo: "p", anchos: [97, 90, 94, 58] },
+  { tipo: "h", anchos: [36] },
+  { tipo: "p", anchos: [99, 92, 71] },
+  { tipo: "codigo", anchos: [66, 80, 42] },
+  { tipo: "p", anchos: [96, 88, 93, 52] },
+];
+---
+
+{
+  activo && (
+    <div class="vp" data-pagefind-ignore>
+      <div class="borroso" aria-hidden="true">
+        {maqueta.map((bloque) => (
+          <div class={`bloque ${bloque.tipo}`}>
+            {bloque.anchos.map((ancho) => (
+              <span style={`width:${ancho}%`} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div class="tarjeta" role="note">
+        <span class="etiqueta">{t.titulo}</span>
+        <p class="texto">{t.texto}</p>
+        <p class="seguir">
+          {t.seguir} <a href={RUTAS[idioma].rss}>{t.rss}</a>
+          {AUTHOR.linkedin && (
+            <>
+              {" "}{t.o} <a href={AUTHOR.linkedin}>{t.linkedin}</a>
+            </>
+          )}
+          .
+        </p>
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .vp {
+    position: relative;
+    margin: 2em 0 0;
+    min-height: 460px;
+  }
+  /* Todo el bloque es decoración: no se puede seleccionar ni tocar. */
+  .borroso {
+    padding-top: 6px;
+    filter: blur(7px);
+    opacity: 0.8;
+    user-select: none;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 18%, transparent 94%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 18%, transparent 94%);
+  }
+  .bloque {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    margin: 0 0 26px;
+  }
+  .bloque span {
+    display: block;
+    height: 13px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--muted) 55%, transparent);
+  }
+  .bloque.h span {
+    height: 24px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--strong) 55%, transparent);
+  }
+  .bloque.codigo {
+    gap: 9px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--code-bg);
+  }
+  .bloque.codigo span {
+    height: 10px;
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .tarjeta {
+    position: absolute;
+    top: 14%;
+    left: 50%;
+    width: min(460px, calc(100% - 16px));
+    transform: translateX(-50%);
+    padding: 22px 24px 20px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow), 0 20px 44px -18px #00000066;
+    text-align: center;
+  }
+  .etiqueta {
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: 600 12px/1.8 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .texto {
+    margin: 12px 0 8px;
+    color: var(--strong);
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .seguir {
+    margin: 0;
+    color: var(--text);
+    font-size: 15px;
+  }
+</style>

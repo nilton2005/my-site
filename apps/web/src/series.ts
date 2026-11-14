@@ -55,9 +55,11 @@ export const SERIES: Record<string, Serie> = {
             titulo: { es: "¿Quién decide en qué carpeta va cada objeto?", en: "Who decides which folder each object goes in?" },
           },
           {
+            id: { es: "ley-de-los-grandes-numeros", en: "law-of-large-numbers" },
             titulo: { es: "La ley de los grandes números, con gráficas", en: "The law of large numbers, with graphs" },
           },
           {
+            id: { es: "pensar-en-probabilidades", en: "thinking-in-probabilities" },
             titulo: { es: "Pensar en probabilidades, no en 0 o 1", en: "Thinking in probabilities, not in 0 or 1" },
           },
         ],

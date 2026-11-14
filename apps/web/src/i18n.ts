@@ -68,6 +68,9 @@ const es = {
     pista: "Pista",
     seguir: "Cuando lo hayas pensado, sigue aquí:",
   },
+  dato: {
+    cerrar: "Cerrar",
+  },
   inicio: {
     saludo: "Hola, soy Nilton Taco.",
     entrada:
@@ -179,6 +182,9 @@ const en: typeof es = {
     tiempo: "It took me more than five days to understand this. Take yours: there's no rush.",
     pista: "Hint",
     seguir: "When you've thought it through, continue here:",
+  },
+  dato: {
+    cerrar: "Close",
   },
   inicio: {
     saludo: "Hi, I'm Nilton Taco.",

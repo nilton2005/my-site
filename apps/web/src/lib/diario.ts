@@ -18,7 +18,8 @@ export async function traduccionDe(articulo: Articulo): Promise<Articulo | undef
 
 /** Minutos de lectura a ~200 palabras por minuto, sin contar los bloques de código. */
 export function minutosDeLectura(texto = ""): number {
-  const prosa = texto.replace(/```[\s\S]*?```/g, " ").replace(/<[^>]+>/g, " ").replace(/^import .*$/gm, " ");
+  // Los paneles <Dato …/> son opcionales (se abren a demanda), así que no cuentan como lectura.
+  const prosa = texto.replace(/<Dato[\s\S]*?\/>/g, " ").replace(/```[\s\S]*?```/g, " ").replace(/<[^>]+>/g, " ").replace(/^import .*$/gm, " ");
   const palabras = prosa.split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(palabras / 200));
 }

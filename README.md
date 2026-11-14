@@ -80,6 +80,27 @@ Una **rama** es un artículo que profundiza en una duda de otro. Se declara en s
 aviso «Rama de …». En el artículo principal, el bloque `<Pausa …/>` plantea la pregunta, da pistas que se abren una a una
 y enlaza a la rama (ver `donde-guarda-git/index.mdx`).
 
+## Paneles opcionales: historia, curiosidades, ejemplos
+
+Para no sobrecargar un artículo, el material extra va en paneles que el lector abre si quiere: una palabra con subrayado
+punteado que, al pasar el cursor (o tocarla), despliega un panel mientras cientos de dígitos hexadecimales vuelan y se
+juntan hasta formar el texto. Con «reducir movimiento» el texto aparece sin animación.
+
+```mdx
+import Dato from "../../../components/Dato.astro";
+import { historia } from "./datos.ts";
+
+La <Dato etiqueta="historia" titulo="Historia de SHA-1" items={historia} /> de SHA-1…
+```
+
+- El contenido de cada panel va en un `datos.ts` junto al artículo (`items` es una lista de renglones con HTML en línea:
+  `<strong>`, `<code>`, `<sup>`). Cada idioma tiene su propio `datos.ts`.
+- Ratón: se abre al pasar el cursor; un clic lo fija. Táctil y teclado: toque o Enter. Se cierra con Esc, con la ×, o
+  al pulsar fuera. Se coloca solo del lado con más espacio y, si no cabe, el contenido se desplaza dentro.
+- El texto siempre está en el HTML (lectores de pantalla y buscadores lo ven) y sin JavaScript se muestra como un bloque más.
+- No cuenta para los «min de lectura». **Verifica cada dato antes de ponerlo**: los del artículo 1 se comprobaron con
+  `git hash-object`, la documentación de Git y las notas de versión.
+
 ## Series y línea de tiempo
 
 Cada artículo es una pieza corta, pero la serie cuenta una sola historia. El plan completo vive en **un solo archivo**,

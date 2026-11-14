@@ -13,8 +13,10 @@ imagenAlt: 'Figura isométrica: una hoja con console.log("hola") sale de la máq
 ---
 
 import DondeGuardaGit from "../../../components/figuras/DondeGuardaGit.astro";
+import Dato from "../../../components/Dato.astro";
 import Nota from "../../../components/Nota.astro";
 import Pausa from "../../../components/Pausa.astro";
+import { curiosos, historia, usos } from "./datos.ts";
 
 Haces `git add hola.js` y el archivo «entra» a Git. Pero ¿a dónde, exactamente? Si abres la carpeta oculta `.git` encontrarás un directorio `objects/` lleno de carpetas de dos caracteres y archivos con nombres de 38. Ahí está tu código, aunque no con el nombre que tú le pusiste.
 
@@ -73,6 +75,8 @@ $ printf 'console.log("Hola");\n' | git hash-object --stdin
 ```
 
 Solo cambiamos la `h` por una `H`, y 38 de los 40 caracteres son distintos.
+
+Si te da curiosidad, hay más sobre esto: la <Dato etiqueta="historia" titulo="Historia de SHA-1" items={historia} />, unos <Dato etiqueta="datos curiosos" titulo="Datos curiosos" items={curiosos} /> y <Dato etiqueta="dónde más se usa" titulo="Dónde más se usa esta idea" items={usos} /> esta idea. Son opcionales: pasa el cursor por la palabra (o tócala) y sigue leyendo cuando quieras.
 
 ## 3. Dónde termina: `.git/objects/84/72c73b…`
 

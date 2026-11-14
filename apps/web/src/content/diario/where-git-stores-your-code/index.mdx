@@ -14,8 +14,10 @@ imagenAlt: 'Isometric figure: a sheet with console.log("hola") comes out of the 
 ---
 
 import DondeGuardaGit from "../../../components/figuras/DondeGuardaGit.astro";
+import Dato from "../../../components/Dato.astro";
 import Nota from "../../../components/Nota.astro";
 import Pausa from "../../../components/Pausa.astro";
+import { curiosos, historia, usos } from "./datos.ts";
 
 You run `git add hola.js` and the file "goes into" Git. But where, exactly? If you open the hidden `.git` folder you'll find an `objects/` directory full of two-character folders and files with 38-character names. Your code is in there, just not under the name you gave it.
 
@@ -74,6 +76,8 @@ $ printf 'console.log("Hola");\n' | git hash-object --stdin
 ```
 
 We only changed the `h` to an `H`, and 38 of the 40 characters are different.
+
+If you're curious, there's more on this: the <Dato etiqueta="history" titulo="History of SHA-1" items={historia} />, some <Dato etiqueta="fun facts" titulo="Fun facts" items={curiosos} /> and <Dato etiqueta="where else it's used" titulo="Where else this idea is used" items={usos} />. They're optional: hover over the word (or tap it) and keep reading whenever you like.
 
 ## 3. Where it ends up: `.git/objects/84/72c73b…`
 

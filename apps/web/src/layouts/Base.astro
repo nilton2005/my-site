@@ -31,9 +31,11 @@ const { description = t.sitio.descripcion, image = new URL(RUTAS[idioma].og, Ast
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f2f2ef" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b0b0b" media="(prefers-color-scheme: dark)" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#f6f3e8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#12100a" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon-64.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="generator" content={Astro.generator} />
     <Seo description={description} image={image} alternate={alternate} {...rest} />
     <script is:inline>

@@ -12,6 +12,11 @@ import { getArticulos, minutosDeLectura, type Articulo } from "../../lib/diario"
 
 const require = createRequire(join(process.cwd(), "package.json"));
 const fuente = (archivo: string) => readFileSync(require.resolve(archivo));
+// Logo de Mokya incrustado: satori no lee archivos, solo URLs de datos.
+const LOGO = `data:image/png;base64,${readFileSync(join(process.cwd(), "public", "mokya-logo.png")).toString("base64")}`;
+const TINTA = "#2a2612";
+const BANANA = "#f3ca47";
+const PAPEL = "#f3eed8";
 const FUENTES = [
   { name: "Inter", data: fuente("@fontsource/inter/files/inter-latin-400-normal.woff"), weight: 400 as const },
   { name: "Inter", data: fuente("@fontsource/inter/files/inter-latin-700-normal.woff"), weight: 700 as const },
@@ -36,23 +41,23 @@ export const GET: APIRoute = async ({ props }) => {
   const fila = { width: "100%", alignItems: "center", justifyContent: "space-between" };
   const arbol = h(
     "div",
-    { width: 1200 - 128, height: 630 - 112, paddingTop: 56, paddingBottom: 56, paddingLeft: 64, paddingRight: 64, flexDirection: "column", background: "#f2f2ef", fontFamily: "Inter", color: "#18181a" },
+    { width: 1200 - 128, height: 630 - 112, paddingTop: 56, paddingBottom: 56, paddingLeft: 64, paddingRight: 64, flexDirection: "column", background: TINTA, fontFamily: "Inter", color: PAPEL },
     h(
       "div",
       { ...fila, height: 32, fontFamily: "Mono", fontSize: 22 },
-      h("div", { color: "#0b7a57", textTransform: "uppercase", letterSpacing: 2 }, serie),
-      h("div", { color: "#18181a" }, "~/niltontaco.pages.dev"),
+      h("div", { alignItems: "center" }, { type: "img", props: { src: LOGO, width: 40, height: 38, style: { marginRight: 14 } } }, h("div", { color: BANANA, textTransform: "uppercase", letterSpacing: 2 }, serie)),
+      h("div", { color: PAPEL }, "niltontaco.pages.dev"),
     ),
     h(
       "div",
       { width: "100%", flexGrow: 1, flexDirection: "column", justifyContent: "center" },
       h("div", { fontSize: largo, fontWeight: 700, lineHeight: 1.05, letterSpacing: -2, marginBottom: 24 }, data.titulo),
-      h("div", { fontSize: 30, lineHeight: 1.35, color: "#45454a", maxWidth: 960 }, data.descripcion),
+      h("div", { fontSize: 30, lineHeight: 1.35, color: "#c9c4a8", maxWidth: 960 }, data.descripcion),
     ),
     h(
       "div",
-      { ...fila, height: 32, fontSize: 24, color: "#45454a" },
-      h("div", { alignItems: "center" }, h("div", { width: 12, height: 26, marginRight: 14, background: "#0b7a57" }), SITE.name),
+      { ...fila, height: 32, fontSize: 24, color: "#c9c4a8" },
+      h("div", { alignItems: "center" }, h("div", { width: 12, height: 26, marginRight: 14, background: BANANA }), SITE.name),
       h("div", { fontFamily: "Mono", fontSize: 22 }, `${minutosDeLectura(body)} ${UI[data.idioma].articulo.lectura}`),
     ),
   );

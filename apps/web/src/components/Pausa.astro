@@ -1,0 +1,80 @@
+---
+// «Detente y piensa»: una pregunta, pistas que se abren una a una (nunca la respuesta) y un enlace
+// a la rama donde se explica. Uso en MDX:
+//   <Pausa pregunta="…" pistas={["…", "…"]} href="/diario/mi-rama/" enlace="Ya lo pensé: ver la explicación →" />
+import { idiomaDe, UI } from "../i18n";
+
+interface Props {
+  pregunta: string;
+  pistas?: string[];
+  href: string;
+  enlace: string;
+}
+
+const { pregunta, pistas = [], href, enlace } = Astro.props;
+const t = UI[idiomaDe(Astro.currentLocale)].pausa;
+---
+
+<aside class="pausa">
+  <p class="rotulo">{t.titulo}</p>
+  <p class="pregunta">{pregunta}</p>
+  <p class="tiempo">{t.tiempo}</p>
+  {
+    pistas.map((pista, i) => (
+      <details>
+        <summary>{t.pista} {i + 1}</summary>
+        <p>{pista}</p>
+      </details>
+    ))
+  }
+  <p class="seguir">{t.seguir} <a href={href}>{enlace}</a></p>
+</aside>
+
+<style>
+  .pausa {
+    margin: 2.2em 0;
+    padding: 18px 22px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .pausa .rotulo {
+    margin: 0 0 8px;
+    color: var(--accent);
+  }
+  .pausa .pregunta {
+    margin: 0 0 8px;
+    color: var(--strong);
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .pausa .tiempo {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 15px;
+    font-style: italic;
+  }
+  details {
+    margin: 6px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+  summary {
+    padding: 8px 14px;
+    color: var(--strong);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  details p {
+    margin: 0;
+    padding: 0 14px 12px;
+    font-size: 15.5px;
+  }
+  .seguir {
+    margin: 14px 0 0;
+    font-size: 15.5px;
+  }
+</style>

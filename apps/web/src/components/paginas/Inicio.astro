@@ -52,7 +52,7 @@ const jsonLd = {
     {
       destacado && (
         <article class="celda destacado" data-brillo>
-          {destacado.data.imagen && (
+          {destacado.data.imagen ? (
             <Image
               class="portada"
               src={destacado.data.imagen}
@@ -61,6 +61,8 @@ const jsonLd = {
               sizes="(min-width: 860px) 540px, 100vw"
               loading="eager"
             />
+          ) : (
+            <img class="portada" src={`/og/${destacado.id}.png`} alt="" width="1200" height="630" loading="eager" />
           )}
           <div class="texto">
             <p class="rotulo">

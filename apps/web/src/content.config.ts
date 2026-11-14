@@ -21,6 +21,8 @@ const diario = defineCollection({
       idioma: z.enum(["es", "en"]).default("es"),
       // Carpeta del mismo artículo en el otro idioma: el switch y los hreflang la usan.
       traduccion: z.string().optional(),
+      // Carpeta del artículo del que esta es una rama (profundiza en una duda de ese artículo).
+      rama: z.string().optional(),
     }),
 });
 

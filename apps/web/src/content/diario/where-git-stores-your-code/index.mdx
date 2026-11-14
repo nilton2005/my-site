@@ -14,6 +14,7 @@ imagenAlt: 'Isometric figure: a sheet with console.log("hola") comes out of the 
 
 import DondeGuardaGit from "../../../components/figuras/DondeGuardaGit.astro";
 import Nota from "../../../components/Nota.astro";
+import Pausa from "../../../components/Pausa.astro";
 
 You run `git add hola.js` and the file "goes into" Git. But where, exactly? If you open the hidden `.git` folder you'll find an `objects/` directory full of two-character folders and files with 38-character names. Your code is in there, just not under the name you gave it.
 
@@ -85,7 +86,18 @@ $ ls .git/objects/84/
 72c73b5ad6a5727750f015fbff152a72ecea74
 ```
 
-The first two characters of the hash are the folder and the remaining 38 are the file name. There are 256 possible folders, from `00` to `ff`, so no single folder ends up with thousands of loose files. In the figure, it's the drawer in row 8, column 4.
+The first two characters of the hash are the folder and the remaining 38 are the file name. There are 256 possible folders, from `00` to `ff`: instead of piling every object into a single folder, Git spreads them over 256. With 100,000 loose objects, that would be about 390 per folder. In the figure, it's the drawer in row 8, column 4.
+
+<Pausa
+  pregunta="There are 256 folders. Who decides which one each object goes in? Does Git keep a count of how many files each folder has, to spread them evenly?"
+  pistas={[
+    "Look at two hashes from the figure above: the one for hola.js and the one for the version with an H. Only one letter changed. Do the beginnings of the two look alike?",
+    "How many different values can two hexadecimal characters have? Work it out before you continue.",
+    "Flip a coin 10 times: you might get 7 and 3. Now flip it 10,000 times. What changes for the whole set? And who would have to count for it to come out even?",
+  ]}
+  href="/en/journal/how-git-spreads-its-objects/"
+  enlace="I've thought it through: see how it spreads →"
+/>
 
 Git lets you read the object back:
 

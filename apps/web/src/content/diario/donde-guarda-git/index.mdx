@@ -13,6 +13,7 @@ imagenAlt: 'Figura isométrica: una hoja con console.log("hola") sale de la máq
 
 import DondeGuardaGit from "../../../components/figuras/DondeGuardaGit.astro";
 import Nota from "../../../components/Nota.astro";
+import Pausa from "../../../components/Pausa.astro";
 
 Haces `git add hola.js` y el archivo «entra» a Git. Pero ¿a dónde, exactamente? Si abres la carpeta oculta `.git` encontrarás un directorio `objects/` lleno de carpetas de dos caracteres y archivos con nombres de 38. Ahí está tu código, aunque no con el nombre que tú le pusiste.
 
@@ -84,7 +85,18 @@ $ ls .git/objects/84/
 72c73b5ad6a5727750f015fbff152a72ecea74
 ```
 
-Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`, así que ninguna termina con miles de archivos sueltos. En la figura es el cajón de la fila 8, columna 4.
+Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`: en lugar de apilar todos los objetos en una sola carpeta, Git los reparte entre 256. Con 100 000 objetos sueltos, serían unos 390 por carpeta. En la figura es el cajón de la fila 8, columna 4.
+
+<Pausa
+  pregunta="Hay 256 carpetas. ¿Quién decide en cuál va cada objeto? ¿Lleva Git la cuenta de cuántos archivos tiene cada una para repartirlos parejo?"
+  pistas={[
+    "Mira dos hashes de la figura de arriba: el de hola.js y el de la versión con H. Cambió una sola letra. ¿Se parece en algo el principio de los dos?",
+    "¿Cuántos valores distintos pueden tener dos caracteres hexadecimales? Haz la cuenta antes de seguir.",
+    "Lanza una moneda 10 veces: puede salir 7 y 3. Ahora lánzala 10 000 veces. ¿Qué cambia en el conjunto? ¿Y quién tendría que contar para que salga parejo?",
+  ]}
+  href="/diario/como-reparte-git-sus-objetos/"
+  enlace="Ya lo pensé: ver cómo se reparte →"
+/>
 
 Git te deja leer el objeto de vuelta:
 

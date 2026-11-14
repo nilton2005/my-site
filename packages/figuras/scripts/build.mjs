@@ -3,9 +3,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as dondeGuardaGit from "../src/donde-guarda-git.mjs";
+import * as reparto from "../src/reparto.mjs";
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const FIGURAS = { "donde-guarda-git": dondeGuardaGit };
+const FIGURAS = { "donde-guarda-git": dondeGuardaGit, reparto };
 
 mkdirSync(DIST, { recursive: true });
 for (const [name, figura] of Object.entries(FIGURAS)) {

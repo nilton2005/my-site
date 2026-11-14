@@ -73,6 +73,13 @@ En los bloques de terminal, «Copiar» copia solo los comandos (sin `$` ni la sa
 - Un artículo sin traducción no aparece en el otro idioma, y el switch lleva a la portada.
 - Las figuras se generan en los dos idiomas (`packages/figuras`).
 
+## Ramas de un artículo
+
+Una **rama** es un artículo que profundiza en una duda de otro. Se declara en su frontmatter con
+`rama: <carpeta-del-artículo-principal>`; el principal muestra la lista de sus ramas al final y la rama lleva un
+aviso «Rama de …». En el artículo principal, el bloque `<Pausa …/>` plantea la pregunta, da pistas que se abren una a una
+y enlaza a la rama (ver `donde-guarda-git/index.mdx`).
+
 ## Qué trae el sitio
 
 - **Paleta de comandos** con `Ctrl K` / `⌘ K` o `/`: navegar, cambiar el tema y buscar en todo el diario.

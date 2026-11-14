@@ -52,6 +52,16 @@ const es = {
     o: "o",
     suscribete: "suscríbete por",
     volver: "← Volver al diario",
+    ramaDe: "Rama de",
+    rama: "rama",
+    ramas: "Ramas de este artículo",
+    ramasIntro: "Preguntas que surgen al leerlo y que merecen su propio artículo:",
+  },
+  pausa: {
+    titulo: "Detente y piensa",
+    tiempo: "A mí me tomó más de cinco días entenderlo. Tómate el tuyo: no hay prisa.",
+    pista: "Pista",
+    seguir: "Cuando lo hayas pensado, sigue aquí:",
   },
   inicio: {
     saludo: "Hola, soy Nilton Taco.",
@@ -150,6 +160,16 @@ const en: typeof es = {
     o: "or",
     suscribete: "subscribe via",
     volver: "← Back to the journal",
+    ramaDe: "Branch of",
+    rama: "branch",
+    ramas: "Branches of this article",
+    ramasIntro: "Questions that come up while reading it and deserve their own article:",
+  },
+  pausa: {
+    titulo: "Stop and think",
+    tiempo: "It took me more than five days to understand this. Take yours: there's no rush.",
+    pista: "Hint",
+    seguir: "When you've thought it through, continue here:",
   },
   inicio: {
     saludo: "Hi, I'm Nilton Taco.",

@@ -1,17 +1,19 @@
 ---
+import { idiomaDe, UI } from "../i18n";
 import { fechaIso, fechaLarga, urlDe, type Articulo } from "../lib/diario";
 
 interface Props {
   articulo: Articulo;
 }
 const { articulo } = Astro.props;
-const { titulo, descripcion, fecha, serie, idioma } = articulo.data;
+const { titulo, descripcion, fecha, serie, idioma, rama } = articulo.data;
 ---
 
 <article class="tarjeta">
   <p class="rotulo">
     <time datetime={fechaIso(fecha)}>{fechaLarga(fecha, idioma)}</time>
     {serie && <span> · {serie.nombre} {String(serie.orden).padStart(2, "0")}</span>}
+    {rama && <span> · {UI[idiomaDe(idioma)].articulo.rama}</span>}
   </p>
   <h3><a href={urlDe(articulo)}>{titulo}</a></h3>
   <p class="descripcion">{descripcion}</p>

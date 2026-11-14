@@ -1,0 +1,26 @@
+---
+// Experimento «256 cajones» generado en packages/figuras (pnpm build lo crea antes que el sitio).
+import es from "@niltontaco/figuras/dist/reparto.es.html?raw";
+import en from "@niltontaco/figuras/dist/reparto.en.html?raw";
+
+interface Props {
+  idioma?: "es" | "en";
+}
+const { idioma = "es" } = Astro.props;
+const html = { es, en }[idioma];
+---
+
+<div class="figura" data-pagefind-ignore="all" set:html={html} />
+
+<style>
+  .figura {
+    width: min(var(--wide), 100vw - 2 * var(--gutter));
+    margin: 2.2em 0 2.4em 50%;
+    transform: translateX(-50%);
+  }
+  @media (min-width: 1280px) {
+    .figura {
+      width: calc(var(--measure) + 96px);
+    }
+  }
+</style>

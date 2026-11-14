@@ -5,7 +5,7 @@ import Base from "./Base.astro";
 import Indice from "../components/Indice.astro";
 import { AUTHOR, PERFILES, SITE } from "../config";
 import { RUTAS, UI } from "../i18n";
-import { fechaIso, fechaLarga, minutosDeLectura, traduccionDe, urlDe, type Articulo } from "../lib/diario";
+import { fechaIso, fechaLarga, getArticulos, minutosDeLectura, traduccionDe, urlDe, type Articulo } from "../lib/diario";
 
 interface Props {
   articulo: Articulo;
@@ -17,6 +17,9 @@ const { titulo, descripcion, fecha, actualizado, serie, etiquetas, imagen, image
 const t = UI[idioma].articulo;
 const rutas = RUTAS[idioma];
 const traduccion = await traduccionDe(articulo);
+const todos = await getArticulos(idioma);
+const padre = articulo.data.rama ? todos.find((a) => a.id === articulo.data.rama) : undefined;
+const ramas = todos.filter((a) => a.data.rama === articulo.id);
 const minutos = minutosDeLectura(articulo.body);
 const url = new URL(urlDe(articulo), Astro.site).href;
 
@@ -60,6 +63,7 @@ const jsonLd = {
       <p class="rotulo">
         <a href={rutas.diario}>{UI[idioma].nav.diario}</a>
         {serie && <span> / {serie.nombre} · {String(serie.orden).padStart(2, "0")}</span>}
+        {padre && <span> / {t.ramaDe} <a href={urlDe(padre)}>{padre.data.titulo}</a></span>}
       </p>
       <h1>{titulo}</h1>
       <p class="entrada">{descripcion}</p>
@@ -79,6 +83,22 @@ const jsonLd = {
     <div class="prosa">
       <slot />
     </div>
+    {
+      ramas.length > 0 && (
+        <aside class="ramas">
+          <p class="rotulo">{t.ramas}</p>
+          <p>{t.ramasIntro}</p>
+          <ul>
+            {ramas.map((r) => (
+              <li>
+                <a href={urlDe(r)}>{r.data.titulo}</a>
+                <span>{r.data.descripcion}</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )
+    }
     <footer class="cierre" data-pagefind-ignore>
       {etiquetas.length > 0 && (
         <ul class="etiquetas" aria-label={t.etiquetas}>
@@ -183,6 +203,15 @@ const jsonLd = {
     color: var(--strong);
     white-space: nowrap;
   }
+  .prosa :global(blockquote) {
+    margin: 1.8em 0;
+    padding: 4px 0 4px 20px;
+    border-left: 3px solid var(--accent);
+    color: var(--strong);
+  }
+  .prosa :global(blockquote p) {
+    margin: 0.4em 0;
+  }
   .prosa :global(table) {
     width: 100%;
     margin: 1.6em 0;
@@ -202,6 +231,41 @@ const jsonLd = {
   }
   .prosa :global(.tabla) {
     overflow-x: auto;
+  }
+
+  .ramas {
+    margin-top: 48px;
+    padding: 18px 22px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .ramas .rotulo {
+    margin: 0 0 6px;
+    color: var(--accent);
+  }
+  .ramas p {
+    margin: 0 0 10px;
+    font-size: 15.5px;
+  }
+  .ramas ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ramas li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+  }
+  .ramas li a {
+    font-weight: 600;
+  }
+  .ramas li span {
+    color: var(--muted);
+    font-size: 14.5px;
   }
 
   .cierre {

@@ -1,0 +1,174 @@
+---
+titulo: "Who decides which folder each object goes in?"
+descripcion: "Git doesn't count or distribute anything: the hash decides. Run an experiment with 100,000 files and see why 256 folders fill up almost evenly."
+fecha: 2026-11-14
+idioma: en
+traduccion: como-reparte-git-sus-objetos
+rama: where-git-stores-your-code
+etiquetas: ["git", "sha-1", "git internals", "probability", "law of large numbers"]
+---
+
+import Reparto from "../../../components/figuras/Reparto.astro";
+import Nota from "../../../components/Nota.astro";
+
+In the previous article we saw that Git stores each object in `.git/objects/<2 characters>/<38 characters>`, and that there are 256 possible folders. I also said that objects are spread almost evenly among them. What I didn't explain is **who does that spreading**. It took me more than five days to understand it, so here's the whole path: my doubts, my wrong assumptions and the answer.
+
+If you came here from the pause in the previous article and haven't thought it through yet, go back and take your time. This page has the answer.
+
+## What I asked myself
+
+I only had one clue: *"the even spread comes from the nature of SHA-1"*. Nothing else. So I did what I could with that:
+
+1. I reviewed the properties of SHA-1, a bit of its history and how it works on the inside.
+2. I asked myself how those properties could make objects get stored uniformly.
+3. I got stuck, because I had no more clues.
+
+Then I asked for help, and got two clues: that the spread comes from **statistics**, and that two hexadecimal characters give **256 combinations** (16 × 16). That's when my assumptions started, and several were wrong:
+
+- *"Git must keep a count of how many files are in each folder and distribute them."*
+- *"If version 2 of a file starts with the same two characters as version 1, they would pile up there."*
+- *"If everything is probability, how can Git be deterministic? And what if every object lands in a single folder?"*
+
+What made it click was this idea: **Git trusts that adding up many almost-random things gives an almost-even result.** And then the coin example: if you flip it once, you can't tell what comes out; with 10 flips you can get 7 heads and 3 tails; with 10,000 you'll be very close to 50% and 50%. The same happens with the 256 folders, except that the "coin" has 256 sides.
+
+## The experiment
+
+Before you keep reading, play with this. Every file you add becomes a real blob, and its SHA-1 (computed in your browser, the same algorithm Git uses) picks a folder.
+
+<Reparto idioma="en" />
+
+Try three things:
+
+1. **Add 10 files**, then 100. You'll see empty folders and a lot of disorder. That's normal.
+2. **Add 100,000.** Almost every folder gets close to the average, and nobody distributed anything.
+3. **Switch to the second method**: choosing the folder by the first character of the content, with no hash. The same files pile up in a few folders, because almost all code starts with `import`, `const` or `function`.
+
+## The short answer
+
+> **Git doesn't distribute anything.** It doesn't count, it doesn't decide, it doesn't balance. The hash is already an almost random number, so its first two characters land on one of 256 options with almost the same probability. Each object goes to the folder its own hash points to. The even spread isn't a Git rule: it's a **statistical consequence** of the hash.
+
+## My doubts, one by one
+
+### Does Git count the files to spread them?
+
+No. When it stores an object, it computes its hash and looks at the first two characters. That's all: it doesn't check how many are in each folder.
+
+### If it's probability, isn't Git deterministic?
+
+They're two different levels, and mixing them up was my biggest mistake:
+
+| Level | Is it predictable? |
+| --- | --- |
+| **One object:** which hash does this content get? | **Yes, always.** The same content gives the same hash on any computer |
+| **All the objects together:** how many land in each folder? | **One by one you can't predict it, but the whole set is orderly** |
+
+Git is 100% deterministic. What looks like chance is that two different contents give hashes that look nothing alike (the avalanche effect from the previous article). Nobody rolls a die, but the result behaves as if someone did.
+
+### What if two versions land in the same folder?
+
+Nothing happens. What identifies an object is the **full 40-character hash**, not the folder. The first two characters only say which drawer it goes in; the other 38 tell it apart from the others in there.
+
+And two objects colliding is normal: the probability that two specific objects match is 1/256 (≈ 0.4%), but with 100 objects there are 4,950 possible pairs, so you expect about **19 matches** (4,950 ÷ 256). That's the "pairs in the same drawer" figure in the experiment.
+
+Also, the versions of a file don't look alike, even if you change one letter: the hash of `console.log("hola");` starts with `84` and the hash of `console.log("Hola");` starts with `12`.
+
+### What if all the objects land in a single folder?
+
+It's possible in theory, but absurdly unlikely. The probability that `n` objects all land in the same folder is (1/256)<sup>n−1</sup>. With only 100 objects, it's 1 in 10<sup>238</sup>. The observable universe is estimated to have about 10<sup>80</sup> atoms. That's what I sensed: there *is* a probability, but it's so small it amounts to never happening.
+
+### Shouldn't chance "make up for it"?
+
+This is the most common mistake. If a coin gives 7 heads and 3 tails, many people think "tails is due". **It isn't**: the coin has no memory, and the next flip is still 50/50. So how do we get to 50%? **By dilution, not by correction.**
+
+If after those 10 flips you do another 10,000 and exactly 5,000 are heads, the total is 5,007 out of 10,010, that is, **50.02%**. The initial 7-3 wasn't made up for: it got diluted.
+
+And results can repeat: three heads in a row happen 1 time in 8. With 256 sides, getting the same one twice in a row happens 1 time in 256. What is very likely (255 out of 256) is that the next flip lands on a different side.
+
+## "More even" has fine print
+
+I ran the experiment with real SHA-1, spreading files over the 256 folders:
+
+| Objects | Average per folder | Lowest – highest | Difference | Difference / average | Empty folders |
+| --- | --- | --- | --- | --- | --- |
+| 10 | 0.04 | 0 – 1 | 1 | — | 246 |
+| 100 | 0.4 | 0 – 2 | 2 | — | 174 |
+| 1,000 | 3.9 | 0 – 11 | 11 | 282% | 6 |
+| 100,000 | 390.6 | 329 – 460 | **131** | 34% | 0 |
+| 1,000,000 | 3,906.3 | 3,751 – 4,047 | **296** | 8% | 0 |
+
+Look at the two middle columns. The difference between the fullest and the emptiest folder **grows** (from 131 to 296 objects), but **in proportion it shrinks** (from 34% to 8%). "More even" means more even *in proportion*. That's what the law of large numbers says: the proportion gets closer to the true probability, even though the absolute count drifts away.
+
+A figure for how far each folder strays: the typical deviation is about √(n/256). With 100,000 objects it's ≈ 20 around an average of 390; with a million, ≈ 62 around 3,906.
+
+You can repeat it. Save this as `reparto.mjs` and run it with `node reparto.mjs`:
+
+```js title="reparto.mjs"
+import { createHash } from "node:crypto";
+
+const n = 100_000;
+const cajones = new Array(256).fill(0);
+
+for (let i = 0; i < n; i++) {
+  const cuerpo = `archivo ${i}\n`;
+  const hash = createHash("sha1").update(`blob ${Buffer.byteLength(cuerpo)}\0${cuerpo}`).digest();
+  cajones[hash[0]]++; // the first byte = the first two hexadecimal characters
+}
+
+console.log(Math.min(...cajones), Math.max(...cajones)); // 329 460
+```
+
+## A curious consequence: `git gc --auto`
+
+There's a number I remembered from somewhere: about 6,500 objects. It turned out to be **6,700**, the default value of `gc.auto`. According to the documentation, when there are *"approximately more than this many loose objects"*, `git gc --auto` packs the loose objects. Note the *approximately*.
+
+I wondered how Git knows how many loose objects there are without walking all 256 folders. I ran an experiment:
+
+```bash
+mkdir prueba && cd prueba && git init -q
+for i in $(seq 1 2000); do echo "archivo $i" > f$i.txt; done
+ls f*.txt | git hash-object -w --stdin-paths > /dev/null
+git count-objects             # 2000 objects, 55 kilobytes
+ls .git/objects/17 | wc -l    # 7
+```
+
+With 2,000 loose objects, folder `17` has 7. Now I lower the threshold to 1,537, which is below the real total:
+
+```bash
+git config gc.autoDetach false
+git config gc.auto 1537
+git gc --auto                 # does nothing
+git config gc.auto 1281
+git gc --auto                 # Auto packing the repository for optimum performance.
+```
+
+With 2,000 objects and a threshold of 1,537, Git did **not** pack, even though the total exceeds it. With 1,281, it did. What I observed is that it decides by looking at **a single folder**, `17`: it divides the threshold by 256, rounding up (1,537 ÷ 256 → 7; 1,281 ÷ 256 → 6) and compares it with the files in there (7 doesn't exceed 7; 7 does exceed 6). That's a deduction from my experiment, and it's consistent with the word *approximately* in the documentation.
+
+It's the nicest proof of all: Git **counts one folder and multiplies by 256**, because it trusts the spread to be even. If the folders were unbalanced, that estimate would make no sense.
+
+<Nota titulo="Careful">
+  This applies to <strong>loose</strong> objects. In large repositories, <code>git gc</code> gathers them into <em>packfile</em> files (<code>.git/objects/pack/</code>), and there are no two-character folders there. That's another story for another article.
+</Nota>
+
+## What I still don't know
+
+Why exactly **256** folders, and not 16 or 4,096? I haven't found an official explanation and I'd rather not make one up. What you can reason out: with fewer folders there would be more files in each one; with more, there would be more folders to create and walk through. If you know the historical reason, I'd love to hear it.
+
+## Try it yourself
+
+In any repository with loose objects (a fresh one, after a few commits):
+
+```bash
+git count-objects
+# how many files the emptiest and the fullest folder have
+for d in .git/objects/??; do ls "$d" | wc -l; done | sort -n | sed -n '1p;$p'
+```
+
+In the `prueba` above, with 2,000 objects, it prints `2` and `16`: an average of 7.8, and no folder far from it.
+
+## In short
+
+- Git **doesn't distribute**: the hash already does it, because two different contents give hashes with no relation to each other.
+- It's deterministic for each object and statistical for the whole set. There's no contradiction.
+- Two objects landing in the same folder is normal; what identifies an object is the full hash.
+- Chance doesn't make up for things: it dilutes them. "More even" is in proportion, not in absolute numbers.
+- Git even relies on this: `git gc --auto` counts one folder and multiplies by 256.

@@ -1,0 +1,174 @@
+---
+titulo: "¿Quién decide en qué carpeta va cada objeto?"
+descripcion: "Git no cuenta ni reparte: el hash decide. Experimenta con 100 000 archivos y descubre por qué 256 carpetas se llenan casi por igual."
+fecha: 2026-11-14
+idioma: es
+traduccion: how-git-spreads-its-objects
+rama: donde-guarda-git
+etiquetas: ["git", "sha-1", "git internals", "probabilidad", "ley de los grandes números"]
+---
+
+import Reparto from "../../../components/figuras/Reparto.astro";
+import Nota from "../../../components/Nota.astro";
+
+En el artículo anterior vimos que Git guarda cada objeto en `.git/objects/<2 caracteres>/<38 caracteres>`, y que hay 256 carpetas posibles. También dije que los objetos se reparten casi por igual entre ellas. Lo que no expliqué es **quién hace ese reparto**. A mí me costó más de cinco días entenderlo, así que aquí va el camino completo: mis dudas, mis suposiciones equivocadas y la respuesta.
+
+Si llegaste desde la pausa del artículo anterior y todavía no lo has pensado, vuelve y tómate tu tiempo. Esta página tiene la respuesta.
+
+## Lo que me pregunté
+
+Solo tenía una pista: *«el reparto es parejo por la naturaleza de SHA-1»*. Nada más. Así que hice lo que pude con eso:
+
+1. Repasé qué propiedades tiene SHA-1, un poco de su historia y cómo funciona por dentro.
+2. Me pregunté cómo esas propiedades podían hacer que los objetos se guardaran de forma uniforme.
+3. Me quedé trabado, porque ya no tenía más pistas.
+
+Entonces pedí ayuda, y me dieron dos pistas: que el reparto sale de la **estadística** y que dos caracteres hexadecimales dan **256 combinaciones** (16 × 16). Con eso empezaron mis suposiciones, y varias estaban equivocadas:
+
+- *«Git debe llevar la cuenta de cuántos archivos hay en cada carpeta y repartir.»*
+- *«Si la versión 2 de un archivo empieza con los mismos dos caracteres que la versión 1, se acumularían ahí.»*
+- *«Si todo es probabilidad, ¿cómo puede ser Git determinista? ¿Y si todos los objetos caen en una sola carpeta?»*
+
+Lo que me hizo clic fue esta idea: **Git confía en que sumar muchas cosas casi aleatorias da un resultado casi parejo.** Y luego el ejemplo de la moneda: si la lanzas una vez, no sabes qué sale; con 10 lanzamientos pueden salir 7 caras y 3 sellos; con 10 000, estarás muy cerca de 50 % y 50 %. Con las 256 carpetas pasa lo mismo, solo que la «moneda» tiene 256 caras.
+
+## El experimento
+
+Antes de seguir leyendo, juega con esto. Cada archivo que añades se convierte en un blob de verdad y su SHA-1 (calculado en tu navegador, el mismo algoritmo que usa Git) elige una carpeta.
+
+<Reparto />
+
+Prueba tres cosas:
+
+1. **Añade 10 archivos** y luego 100. Verás carpetas vacías y mucho desorden. Es normal.
+2. **Añade 100 000.** Casi todas las carpetas se acercan al promedio, y nadie las repartió.
+3. **Cambia al segundo método**: elegir la carpeta por el primer carácter del contenido, sin hash. Los mismos archivos se amontonan en unas pocas carpetas, porque casi todo el código empieza con `import`, `const` o `function`.
+
+## La respuesta corta
+
+> **Git no reparte nada.** No cuenta, no decide, no balancea. El hash ya es un número casi aleatorio, así que sus dos primeros caracteres caen en una de 256 opciones con casi la misma probabilidad. Cada objeto va a la carpeta que su propio hash le marca. El reparto parejo no es una regla de Git: es una **consecuencia estadística** del hash.
+
+## Mis dudas, una por una
+
+### ¿Git cuenta los archivos para repartirlos?
+
+No. Cuando guarda un objeto, calcula su hash y mira los dos primeros caracteres. Eso es todo: no consulta cuántos hay en cada carpeta.
+
+### Si es probabilidad, ¿Git no es determinista?
+
+Son dos niveles distintos, y confundirlos fue mi mayor error:
+
+| Nivel | ¿Es predecible? |
+| --- | --- |
+| **Un objeto:** ¿qué hash le toca a este contenido? | **Sí, siempre.** El mismo contenido da el mismo hash en cualquier computadora |
+| **Todos los objetos juntos:** ¿cuántos caen en cada carpeta? | **Uno por uno no se puede predecir, pero el conjunto es ordenado** |
+
+Git es 100 % determinista. Lo que parece azar es que dos contenidos distintos dan hashes que no se parecen en nada (el efecto avalancha del artículo anterior). Nadie lanza un dado, pero el resultado se comporta como si alguien lo lanzara.
+
+### ¿Y si dos versiones caen en la misma carpeta?
+
+No pasa nada. Lo que identifica a un objeto es el **hash completo de 40 caracteres**, no la carpeta. Los dos primeros caracteres solo dicen en qué cajón se guarda; los otros 38 lo distinguen de los demás que estén ahí.
+
+Y que dos objetos coincidan es normal: la probabilidad de que dos objetos concretos coincidan es 1/256 (≈ 0,4 %), pero con 100 objetos hay 4 950 parejas posibles, así que se esperan unas **19 coincidencias** (4 950 ÷ 256). Es la cifra «parejas en un mismo cajón» del experimento.
+
+Además, las versiones de un archivo no se parecen entre sí, aunque cambies una letra: el hash de `console.log("hola");` empieza con `84` y el de `console.log("Hola");`, con `12`.
+
+### ¿Y si todos los objetos caen en una sola carpeta?
+
+Es posible en teoría, pero absurdamente improbable. La probabilidad de que `n` objetos caigan todos en la misma carpeta es (1/256)<sup>n−1</sup>. Con solo 100 objetos, es de 1 entre 10<sup>238</sup>. Se estima que el universo observable tiene unos 10<sup>80</sup> átomos. Es lo que intuí: *sí* hay una probabilidad, pero es tan pequeña que equivale a que no ocurra.
+
+### ¿No debería «compensarse» el azar?
+
+Este es el error más común. Si en una moneda salen 7 caras y 3 sellos, mucha gente piensa que «ya toca sello». **No toca**: la moneda no tiene memoria, y el siguiente lanzamiento sigue siendo 50/50. Entonces, ¿cómo llegamos a 50 %? **Por dilución, no por corrección.**
+
+Si después de esos 10 lanzamientos haces otros 10 000 y salen exactamente 5 000 caras, el total es 5 007 de 10 010, es decir, **50,02 %**. El 7-3 inicial no se compensó: quedó diluido.
+
+Y sí se pueden repetir resultados: tres caras seguidas ocurren 1 de cada 8 veces. Con 256 caras, repetir la misma dos veces seguidas ocurre 1 de cada 256. Lo que es muy probable (255 de 256) es que el siguiente lanzamiento caiga en otra cara.
+
+## «Más parejo» tiene letra pequeña
+
+Hice el experimento con SHA-1 real, repartiendo archivos en las 256 carpetas:
+
+| Objetos | Promedio por carpeta | Menor – mayor | Diferencia | Diferencia / promedio | Carpetas vacías |
+| --- | --- | --- | --- | --- | --- |
+| 10 | 0,04 | 0 – 1 | 1 | — | 246 |
+| 100 | 0,4 | 0 – 2 | 2 | — | 174 |
+| 1 000 | 3,9 | 0 – 11 | 11 | 282 % | 6 |
+| 100 000 | 390,6 | 329 – 460 | **131** | 34 % | 0 |
+| 1 000 000 | 3 906,3 | 3 751 – 4 047 | **296** | 8 % | 0 |
+
+Fíjate en las dos columnas del medio. La diferencia entre la carpeta más llena y la más vacía **crece** (de 131 a 296 objetos), pero **en proporción se achica** (de 34 % a 8 %). «Más parejo» significa más parejo *en proporción*. Eso dice la ley de los grandes números: la proporción se acerca a la probabilidad real, aunque el conteo absoluto se aleje.
+
+Dato para medir qué tan lejos queda cada carpeta: el desvío típico es de unos √(n/256). Con 100 000 objetos es ≈ 20 sobre un promedio de 390; con un millón, ≈ 62 sobre 3 906.
+
+Puedes repetirlo. Guarda esto como `reparto.mjs` y ejecútalo con `node reparto.mjs`:
+
+```js title="reparto.mjs"
+import { createHash } from "node:crypto";
+
+const n = 100_000;
+const cajones = new Array(256).fill(0);
+
+for (let i = 0; i < n; i++) {
+  const cuerpo = `archivo ${i}\n`;
+  const hash = createHash("sha1").update(`blob ${Buffer.byteLength(cuerpo)}\0${cuerpo}`).digest();
+  cajones[hash[0]]++; // el primer byte = los dos primeros caracteres hexadecimales
+}
+
+console.log(Math.min(...cajones), Math.max(...cajones)); // 329 460
+```
+
+## Una consecuencia curiosa: `git gc --auto`
+
+Hay un número que recordaba de alguna parte: unos 6 500 objetos. Resultó ser **6 700**, el valor por defecto de `gc.auto`. Según la documentación, cuando hay *«approximately more than this many loose objects»*, `git gc --auto` empaqueta los objetos sueltos. Fíjate en el *approximately*.
+
+Me pregunté cómo sabe Git cuántos objetos sueltos hay sin recorrer las 256 carpetas. Hice un experimento:
+
+```bash
+mkdir prueba && cd prueba && git init -q
+for i in $(seq 1 2000); do echo "archivo $i" > f$i.txt; done
+ls f*.txt | git hash-object -w --stdin-paths > /dev/null
+git count-objects             # 2000 objects, 55 kilobytes
+ls .git/objects/17 | wc -l    # 7
+```
+
+Con 2 000 objetos sueltos, la carpeta `17` tiene 7. Ahora bajo el umbral a 1 537, que es menor que el total real:
+
+```bash
+git config gc.autoDetach false
+git config gc.auto 1537
+git gc --auto                 # no hace nada
+git config gc.auto 1281
+git gc --auto                 # Auto packing the repository for optimum performance.
+```
+
+Con 2 000 objetos y un umbral de 1 537, Git **no** empaquetó, aunque el total lo supera. Con 1 281, sí. Lo que observé es que decide mirando **una sola carpeta**, la `17`: divide el umbral entre 256, redondeando hacia arriba (1 537 ÷ 256 → 7; 1 281 ÷ 256 → 6) y compara con los archivos que hay ahí (7 no supera 7; 7 sí supera 6). Es una deducción a partir de mi experimento, y es coherente con la palabra *approximately* de la documentación.
+
+Es la prueba más bonita de todas: Git **cuenta una carpeta y multiplica por 256**, porque confía en que el reparto es parejo. Si las carpetas estuvieran desbalanceadas, esa estimación no tendría sentido.
+
+<Nota titulo="Ojo">
+  Esto es para los objetos <strong>sueltos</strong>. En repositorios grandes, <code>git gc</code> los junta en archivos <em>packfile</em> (<code>.git/objects/pack/</code>), y ahí ya no hay carpetas de dos caracteres. Es otra historia para otro artículo.
+</Nota>
+
+## Lo que todavía no sé
+
+¿Por qué justo **256** carpetas, y no 16 o 4 096? No encontré una explicación oficial y prefiero no inventarla. Lo que sí puedes razonar: con menos carpetas habría más archivos en cada una; con más, habría más carpetas que crear y recorrer. Si sabes la razón histórica, me encantaría conocerla.
+
+## Pruébalo tú
+
+En cualquier repositorio con objetos sueltos (uno nuevo, tras varios commits):
+
+```bash
+git count-objects
+# cuántos archivos tiene la carpeta con menos y la que más
+for d in .git/objects/??; do ls "$d" | wc -l; done | sort -n | sed -n '1p;$p'
+```
+
+En el `prueba` de arriba, con 2 000 objetos, dice `2` y `16`: un promedio de 7,8, y ninguna carpeta lejos de él.
+
+## En resumen
+
+- Git **no reparte**: el hash ya lo hace, porque dos contenidos distintos dan hashes sin relación entre sí.
+- Es determinista para cada objeto y estadístico para el conjunto. No hay contradicción.
+- Que dos objetos caigan en la misma carpeta es normal; lo que identifica a un objeto es el hash completo.
+- El azar no se compensa: se diluye. «Más parejo» es en proporción, no en cantidad absoluta.
+- Git incluso se apoya en esto: `git gc --auto` cuenta una carpeta y multiplica por 256.

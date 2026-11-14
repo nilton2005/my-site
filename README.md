@@ -80,6 +80,21 @@ Una **rama** es un artículo que profundiza en una duda de otro. Se declara en s
 aviso «Rama de …». En el artículo principal, el bloque `<Pausa …/>` plantea la pregunta, da pistas que se abren una a una
 y enlaza a la rama (ver `donde-guarda-git/index.mdx`).
 
+## Series y línea de tiempo
+
+Cada artículo es una pieza corta, pero la serie cuenta una sola historia. El plan completo vive en **un solo archivo**,
+`apps/web/src/series.ts`: las partes en orden, qué le pasa a `hola.js` en cada una (el *hilo*) y las ramas previstas.
+La línea de tiempo (`components/LineaDeTiempo.astro`) cruza ese plan con los artículos reales y se ve en la portada
+y al final de cada artículo (una rama hereda la serie de su padre y aparece resaltada).
+
+- **Estado**: una parte sin artículo se ve como «próximamente»; con `borrador: true` solo se ve en `pnpm dev` (con la
+  etiqueta «borrador») y en producción sigue como «próximamente», sin enlace y sin entrar en el sitemap, el RSS ni el buscador.
+- **Añadir una parte**: agrégala en `series.ts` con sus textos en ES y EN, y escribe los dos artículos con
+  `serie: { nombre: "Git por dentro" | "Inside Git", orden: N }`. El `id` de la parte es la carpeta de cada artículo.
+- **Publicar un borrador**: quita `borrador: true` de los dos idiomas, ajusta `fecha` y, si hace falta, añade el enlace
+  en el «Lo que viene» del artículo anterior.
+- Los títulos de las partes que aún no existen son **de trabajo**: cuando el artículo existe, la línea de tiempo usa su título real.
+
 ## Qué trae el sitio
 
 - **Paleta de comandos** con `Ctrl K` / `⌘ K` o `/`: navegar, cambiar el tema y buscar en todo el diario.

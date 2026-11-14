@@ -1,6 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import Base from "../../layouts/Base.astro";
+import LineaDeTiempo from "../LineaDeTiempo.astro";
 import { AUTHOR, PERFILES, SITE } from "../../config";
 import { idiomaDe, otroIdioma, RUTAS, UI } from "../../i18n";
 import { fechaIso, fechaLarga, getArticulos, minutosDeLectura, urlDe } from "../../lib/diario";
@@ -9,9 +10,6 @@ const idioma = idiomaDe(Astro.currentLocale);
 const t = UI[idioma].inicio;
 const articulos = await getArticulos(idioma);
 const [destacado] = articulos;
-const serie = articulos
-  .filter((a) => a.data.serie?.nombre === t.serie)
-  .sort((a, b) => a.data.serie!.orden - b.data.serie!.orden);
 
 // Números reales del diario, calculados al compilar.
 const minutos = articulos.reduce((total, a) => total + minutosDeLectura(a.body), 0);
@@ -108,20 +106,7 @@ const jsonLd = {
 
     <div class="celda serie" data-brillo>
       <p class="rotulo">{t.rotuloSerie} · {t.serie}</p>
-      <ol>
-        {
-          serie.map((a) => (
-            <li>
-              <span class="num">{String(a.data.serie!.orden).padStart(2, "0")}</span>
-              <a href={urlDe(a)}>{a.data.titulo}</a>
-            </li>
-          ))
-        }
-        <li class="proximo">
-          <span class="num">{String(serie.length + 1).padStart(2, "0")}</span>
-          <span set:html={t.proximo} />
-        </li>
-      </ol>
+      <LineaDeTiempo serie="git-por-dentro" idioma={idioma} compacta />
     </div>
   </section>
 </Base>
@@ -336,29 +321,6 @@ const jsonLd = {
     background: var(--surface-2);
     font: 500 12.5px/1.6 var(--font-mono);
     color: var(--strong);
-  }
-
-  .serie li {
-    display: flex;
-    gap: 12px;
-    align-items: baseline;
-    padding: 10px 0;
-    border-top: 1px solid var(--line);
-    font-size: 15.5px;
-  }
-  .serie li:first-child {
-    border-top: 0;
-    padding-top: 2px;
-  }
-  .serie .num {
-    font: 600 13px/1 var(--font-mono);
-    color: var(--accent);
-  }
-  .serie .proximo {
-    color: var(--muted);
-  }
-  .serie .proximo .num {
-    color: var(--muted);
   }
 
   @media (max-width: 860px) {

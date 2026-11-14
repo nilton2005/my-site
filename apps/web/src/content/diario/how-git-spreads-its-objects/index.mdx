@@ -117,6 +117,57 @@ for (let i = 0; i < n; i++) {
 console.log(Math.min(...cajones), Math.max(...cajones)); // 329 460
 ```
 
+## What if everything were in a single folder?
+
+So far I took it for granted that spreading is better, but I hadn't measured it. Git doesn't allow a flat layout, so I simulated it with Node: the same files, with the same hash names, in two layouts. One single folder, and 256 folders like `.git/objects/`. It's a simulation of the file system, not of Git, and the numbers are from my computer (Windows, NTFS). On another system they'll change, but the shape of the curve won't.
+
+First, something I didn't expect: **looking up a file when you already know its full name barely changes.** With 10,000 files it took 18 µs in both layouts, and with 100,000, 41 µs in the flat folder against 25 µs in the 256. My reading is that the file system keeps the names of each folder in an ordered structure and doesn't need to walk through them.
+
+What blows up is everything that forces you to **list** the folder. A real case: when you type `git cat-file -p 8472c73b` you only give it 8 characters. Git can't build the file name: it knows which folder to look in (`84/`), but it has to look inside and compare the rest. With 256 folders that's about 390 names to compare. With a single one, it's all of them:
+
+| Objects | Single folder | 256 folders | Difference |
+| --- | --- | --- | --- |
+| 1,000 | 0.55 ms | 0.05 ms | ≈ ×11 |
+| 10,000 | 9.2 ms | 0.13 ms | ≈ ×70 |
+| 100,000 | 63.8 ms | 0.23 ms | ≈ ×280 |
+
+These are medians of 40 lookups. In the flat folder the time grows as the objects grow; in the 256 you barely notice, because each folder holds only a few hundred names.
+
+Counting works out similarly. With 100,000 objects, listing the whole flat folder took 53 ms and walking the 256 folders took 61 ms: spreading doesn't help to count *everything*. But estimating with a single folder and multiplying by 256 took 0.18 ms. That's the trick behind `git gc --auto`, which we'll see next, and it only works because the spread is even.
+
+You can repeat it. Save this as `carpeta.mjs` in an empty folder and run it with `node carpeta.mjs`. It creates 200,000 files and takes over a minute; delete the folder when you're done:
+
+```js title="carpeta.mjs"
+import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync, readdirSync } from "node:fs";
+
+const N = 100_000;
+const nombres = Array.from({ length: N }, (_, i) => {
+  const cuerpo = `archivo ${i}\n`;
+  return createHash("sha1").update(`blob ${Buffer.byteLength(cuerpo)}\0${cuerpo}`).digest("hex");
+});
+
+// A: everything in a single folder. B: spread over 256, like .git/objects
+mkdirSync("plana", { recursive: true });
+for (let i = 0; i < 256; i++) mkdirSync(`repartida/${i.toString(16).padStart(2, "0")}`, { recursive: true });
+for (const h of nombres) {
+  writeFileSync(`plana/${h}`, "x");
+  writeFileSync(`repartida/${h.slice(0, 2)}/${h.slice(2)}`, "x");
+}
+
+// Resolve an abbreviated hash, like `git cat-file -p 8472c73b`: list the folder and compare
+const prefijo = nombres[12345].slice(0, 8);
+const medir = (f) => {
+  const t = performance.now();
+  f();
+  return `${(performance.now() - t).toFixed(2)} ms`;
+};
+console.log("plana    ", medir(() => readdirSync("plana").filter((n) => n.startsWith(prefijo))));
+console.log("repartida", medir(() => readdirSync(`repartida/${prefijo.slice(0, 2)}`).filter((n) => n.startsWith(prefijo.slice(2)))));
+```
+
+The script measures only once and cold, so the numbers jump from one run to another: in one of mine it printed `121.80 ms` against `0.67 ms`. What doesn't change is the proportion.
+
 ## A curious consequence: `git gc --auto`
 
 There's a number I remembered from somewhere: about 6,500 objects. It turned out to be **6,700**, the default value of `gc.auto`. According to the documentation, when there are *"approximately more than this many loose objects"*, `git gc --auto` packs the loose objects. Note the *approximately*.
@@ -151,7 +202,7 @@ It's the nicest proof of all: Git **counts one folder and multiplies by 256**, b
 
 ## What I still don't know
 
-Why exactly **256** folders, and not 16 or 4,096? I haven't found an official explanation and I'd rather not make one up. What you can reason out: with fewer folders there would be more files in each one; with more, there would be more folders to create and walk through. If you know the historical reason, I'd love to hear it.
+Why exactly **256** folders, and not 16 or 4,096? Now I know that spreading matters and by how much, but that doesn't explain the exact number. I haven't found an official explanation and I'd rather not make one up. What you can reason out: with fewer folders there would be more files in each one; with more, there would be more folders to create and walk through. If you know the historical reason, I'd love to hear it.
 
 ## Try it yourself
 
@@ -171,4 +222,5 @@ In the `prueba` above, with 2,000 objects, it prints `2` and `16`: an average of
 - It's deterministic for each object and statistical for the whole set. There's no contradiction.
 - Two objects landing in the same folder is normal; what identifies an object is the full hash.
 - Chance doesn't make up for things: it dilutes them. "More even" is in proportion, not in absolute numbers.
+- Spreading matters: with 100,000 objects, resolving an abbreviated hash in a single folder was about 280 times slower in my test. Looking up by the full name barely changes.
 - Git even relies on this: `git gc --auto` counts one folder and multiplies by 256.

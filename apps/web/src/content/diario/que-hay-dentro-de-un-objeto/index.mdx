@@ -1,0 +1,141 @@
+---
+titulo: "¿Qué hay dentro de un objeto de Git?"
+descripcion: "Abre un objeto de .git/objects con cat-file y con Node: la cabecera, el byte nulo y tu código, comprimidos con zlib. Con comandos que puedes reproducir."
+fecha: 2026-11-14
+borrador: true
+traduccion: whats-inside-a-git-object
+serie:
+  nombre: "Git por dentro"
+  orden: 2
+etiquetas: ["git", "zlib", "git internals", "compresión"]
+---
+
+import Nota from "../../../components/Nota.astro";
+
+En el [artículo anterior](/diario/donde-guarda-git/) seguimos a `hola.js` hasta su carpeta: `.git/objects/84/72c73b…`. Pero todavía no abrimos el archivo. Si lo haces con un editor, no se lee nada. Este artículo es sobre eso: qué hay dentro y por qué no se puede leer a simple vista.
+
+## 1. Leer el objeto con Git
+
+Git trae un comando para leer objetos: `git cat-file`. Le das el hash y te devuelve el tipo, el tamaño o el contenido.
+
+```bash
+$ git cat-file -t 8472c73b   # tipo
+blob
+$ git cat-file -s 8472c73b   # tamaño en bytes
+21
+$ git cat-file -p 8472c73b   # contenido
+console.log("hola");
+```
+
+Fíjate en que solo escribí los 8 primeros caracteres del hash. A Git le basta: con los dos primeros sabe en qué carpeta mirar y con los demás encuentra el archivo. Eso es lo que medimos en [la rama sobre el reparto](/diario/como-reparte-git-sus-objetos/), donde vimos cuánto cuesta esa búsqueda si todo estuviera en una sola carpeta.
+
+## 2. Pero el archivo en disco no se lee
+
+`cat-file` hace trabajo por ti. Si miras los bytes del archivo tal como están en `.git/objects/84/72c73b…`, empiezan así:
+
+```bash
+$ node -e "console.log(require('fs').readFileSync('.git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74').subarray(0,2).toString('hex'))"
+7801
+```
+
+Esos dos bytes, `78 01`, son la marca de un flujo **zlib**. El archivo está comprimido. Y pesa más de lo que esperarías para 21 bytes de código:
+
+```bash
+$ wc -c < .git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74
+37
+```
+
+El contenido mide 21 bytes y el archivo en disco, 37. Más abajo vemos por qué.
+
+## 3. Abrirlo con zlib
+
+Con Node.js puedes descomprimirlo en una línea:
+
+```bash
+$ node -e "const fs=require('fs'),zlib=require('zlib');console.log(JSON.stringify(zlib.inflateSync(fs.readFileSync('.git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74')).toString()))"
+"blob 21\u0000console.log(\"hola\");\n"
+```
+
+Ahí está todo: la cabecera `blob 21`, el byte nulo (`\u0000`) y tu código. Es exactamente lo que le dimos a SHA-1 en el artículo anterior. `git cat-file -p` solo te muestra la última parte, sin la cabecera. Y el nombre `hola.js` no aparece por ninguna parte.
+
+## 4. ¿Por qué comprimir?
+
+Probé con tres contenidos distintos. Los dos últimos pesan 105 000 bytes: uno repite 5 000 veces la misma línea y el otro son bytes al azar.
+
+| Contenido | Tamaño | En disco |
+| --- | --- | --- |
+| `hola.js` | 21 bytes | 37 bytes |
+| La misma línea 5 000 veces | 105 000 bytes | 623 bytes |
+| 105 000 bytes al azar | 105 000 bytes | 105 053 bytes |
+
+Tres resultados, tres lecciones:
+
+- **El código repetitivo se comprime muchísimo.** Y el código real se repite: palabras clave, nombres, sangrías. Por eso la compresión suele ahorrar espacio en un repositorio.
+- **Un archivo pequeño no se beneficia.** Crece de 21 a 37 bytes: la cabecera `blob 21\0` y la envoltura de zlib pesan más que lo que se ahorra.
+- **Lo que parece azar no se comprime.** Un archivo ya comprimido (una imagen JPG, un `.zip`) se parece a bytes al azar, así que Git le saca casi nada.
+
+Puedes repetirlo en una carpeta vacía:
+
+```bash
+git init -q
+node -e "require('fs').writeFileSync('repetido.js','console.log(\"hola\");\n'.repeat(5000))"
+head -c 105000 /dev/urandom > azar.bin
+for f in repetido.js azar.bin; do
+  h=$(git hash-object -w $f)
+  echo "$f: $(wc -c < $f) bytes, en disco $(wc -c < .git/objects/${h:0:2}/${h:2})"
+done
+```
+
+El archivo al azar cambia en cada ejecución, así que su tamaño exacto en disco puede variar un poco; el repetido me dio 623 bytes las dos veces que lo probé.
+
+## 5. El hash se calcula antes de comprimir
+
+Hay una pregunta que me hice: si el nombre del archivo es el hash, y el archivo está comprimido, ¿el hash es del contenido comprimido o del original? Lo comprobé guardando el mismo archivo con tres niveles de compresión (`core.looseCompression`, de 0 a 9) y comparando:
+
+```bash
+for nivel in 0 1 9; do
+  git init -q prueba$nivel
+  h=$(git -C prueba$nivel -c core.looseCompression=$nivel hash-object -w ../repetido.js)
+  echo "nivel $nivel: $h  $(wc -c < prueba$nivel/.git/objects/${h:0:2}/${h:2}) bytes"
+done
+```
+
+```text
+nivel 0: 284a9544bd7ba10ce52b469a106aad7a1d58a0b5  105033 bytes
+nivel 1: 284a9544bd7ba10ce52b469a106aad7a1d58a0b5  623 bytes
+nivel 9: 284a9544bd7ba10ce52b469a106aad7a1d58a0b5  314 bytes
+```
+
+El hash es el mismo en los tres, pero el archivo en disco pesa 105 033, 623 o 314 bytes. Así que **el hash identifica el contenido original, no su forma comprimida**: puedes cambiar cómo se guarda sin cambiar la identidad del objeto. Cuando no tocamos nada, en el experimento de arriba Git escribió 623 bytes, igual que con el nivel 1.
+
+<Nota titulo="Ojo">
+  Estos son objetos <strong>sueltos</strong>: un archivo por objeto. Cuando hay muchos, Git los junta en <em>packfiles</em>, que se guardan de otra manera. Les llegará su parte en la serie.
+</Nota>
+
+## En resumen
+
+<div class="tabla">
+
+| Qué | Cómo | Comando |
+| --- | --- | --- |
+| Leer un objeto | Git quita la cabecera y te da el contenido | `git cat-file -p <hash>` |
+| El archivo en disco | Cabecera + contenido, comprimidos con zlib (empieza con `78 01`) | `zlib.inflateSync` en Node |
+| El hash | Se calcula sobre el contenido sin comprimir | `git hash-object` |
+
+</div>
+
+## Pruébalo tú
+
+En una carpeta vacía:
+
+```bash
+git init -q
+printf 'console.log("hola");\n' > hola.js
+git hash-object -w hola.js        # 8472c73b…
+git cat-file -p 8472c73b          # tu código, sin cabecera
+wc -c < .git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74   # 37
+```
+
+## Lo que viene
+
+Ya sabemos qué hay dentro del blob y cómo se guarda. Pero el blob no tiene nombre. Si guardaras dos archivos, `hola.js` y `adios.js`, ¿cómo recuerda Git cuál es cuál? En el próximo artículo de **Git por dentro**: los *trees*, el objeto que convierte un montón de blobs en una carpeta.

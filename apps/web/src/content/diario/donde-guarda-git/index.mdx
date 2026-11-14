@@ -2,6 +2,7 @@
 titulo: "¿Dónde guarda Git tu código?"
 descripcion: "Git no guarda archivos: guarda contenido. Sigue a hola.js desde tu carpeta hasta .git/objects/, pasando por el hash SHA-1, con comandos que puedes reproducir."
 fecha: 2026-10-30
+actualizado: 2026-11-14
 traduccion: where-git-stores-your-code
 serie:
   nombre: "Git por dentro"
@@ -23,7 +24,7 @@ La respuesta corta: **Git es una base de datos clave-valor**. El valor es el con
 
 ## 1. Git guarda el contenido, no el archivo
 
-Un archivo tiene dos cosas: un **nombre** (`hola.js`) y un **contenido** (`console.log("hola");` más un salto de línea: 21 bytes). Git los guarda por separado. El contenido va a un objeto de tipo **blob**; el nombre lo guarda otro objeto, el *tree*, que veremos en el próximo artículo.
+Un archivo tiene dos cosas: un **nombre** (`hola.js`) y un **contenido** (`console.log("hola");` más un salto de línea: 21 bytes). Git los guarda por separado. El contenido va a un objeto de tipo **blob**; el nombre lo guarda otro objeto, el *tree*, que veremos más adelante en la serie.
 
 Por eso, en la figura, el letrero `hola.js` se queda en la mesa y solo viaja la hoja. La consecuencia es directa: si copias el archivo con otro nombre, Git calcula exactamente el mismo hash, y no guarda nada nuevo.
 
@@ -85,7 +86,7 @@ $ ls .git/objects/84/
 72c73b5ad6a5727750f015fbff152a72ecea74
 ```
 
-Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`: en lugar de apilar todos los objetos en una sola carpeta, Git los reparte entre 256. Con 100 000 objetos sueltos, serían unos 390 por carpeta. En la figura es el cajón de la fila 8, columna 4.
+Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`: en lugar de apilar todos los objetos en una sola carpeta, Git los reparte entre 256. Con 100 000 objetos sueltos, serían unos 390 por carpeta. En la figura es el cajón de la fila 8, columna 4. ¿De verdad importa repartir? En la rama que sigue a la pausa lo medimos.
 
 <Pausa
   pregunta="Hay 256 carpetas. ¿Quién decide en cuál va cada objeto? ¿Lleva Git la cuenta de cuántos archivos tiene cada una para repartirlos parejo?"
@@ -98,28 +99,6 @@ Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombr
   enlace="Ya lo pensé: ver cómo se reparte →"
 />
 
-Git te deja leer el objeto de vuelta:
-
-```bash
-$ git cat-file -t 8472c73b   # tipo
-blob
-$ git cat-file -s 8472c73b   # tamaño en bytes
-21
-$ git cat-file -p 8472c73b   # contenido
-console.log("hola");
-```
-
-### Por dentro, comprimido con zlib
-
-El archivo en disco no es texto plano: es la cabecera más el contenido, comprimidos con zlib. Con Node.js lo abres en una línea:
-
-```bash
-$ node -e "const fs=require('fs'),zlib=require('zlib');console.log(JSON.stringify(zlib.inflateSync(fs.readFileSync('.git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74')).toString()))"
-"blob 21\u0000console.log(\"hola\");\n"
-```
-
-Ahí está la cabecera `blob 21`, el byte nulo (`\u0000`) y tu código. El nombre `hola.js` no aparece por ninguna parte.
-
 ## En resumen
 
 <div class="tabla">
@@ -128,7 +107,7 @@ Ahí está la cabecera `blob 21`, el byte nulo (`\u0000`) y tu código. El nombr
 | --- | --- | --- |
 | Tu archivo | Tiene nombre y contenido; al blob solo le importa el contenido | — |
 | El hash | SHA-1 de `blob <bytes>\0` + contenido: 40 caracteres | `git hash-object` |
-| El guardado | En `.git/objects/<2 caracteres>/<38 caracteres>`, comprimido con zlib | `git hash-object -w` (o `git add`) |
+| El guardado | En `.git/objects/<2 caracteres>/<38 caracteres>` | `git hash-object -w` (o `git add`) |
 
 </div>
 
@@ -141,7 +120,6 @@ git init
 printf 'console.log("hola");\n' > hola.js
 git hash-object -w hola.js        # 8472c73b…
 ls .git/objects/84/
-git cat-file -p 8472c73b
 cp hola.js copia.js
 git hash-object copia.js          # el mismo hash: no se guarda nada nuevo
 ```
@@ -150,4 +128,4 @@ Git también puede usar SHA-256 en lugar de SHA-1 (`git init --object-format=sha
 
 ## Lo que viene
 
-Si el blob no tiene nombre, ¿dónde guarda Git que ese contenido se llama `hola.js`? En el próximo artículo de **Git por dentro**: los *trees*, el objeto que convierte un montón de blobs en una carpeta.
+Ya sabes en qué carpeta cae el objeto. Pero ¿qué hay realmente dentro de ese archivo? Si lo abres con un editor, no se lee nada. En el próximo artículo de **Git por dentro** lo abrimos: `git cat-file`, la cabecera, el byte nulo y la compresión con zlib. Después vienen los *trees*, que responden otra pregunta: si el blob no tiene nombre, ¿dónde guarda Git que ese contenido se llama `hola.js`?

@@ -3,9 +3,11 @@ import { getImage } from "astro:assets";
 import type { MarkdownHeading } from "astro";
 import Base from "./Base.astro";
 import Indice from "../components/Indice.astro";
+import LineaDeTiempo from "../components/LineaDeTiempo.astro";
 import { AUTHOR, PERFILES, SITE } from "../config";
 import { RUTAS, UI } from "../i18n";
 import { fechaIso, fechaLarga, getArticulos, minutosDeLectura, traduccionDe, urlDe, type Articulo } from "../lib/diario";
+import { serieDe } from "../series";
 
 interface Props {
   articulo: Articulo;
@@ -20,6 +22,8 @@ const traduccion = await traduccionDe(articulo);
 const todos = await getArticulos(idioma);
 const padre = articulo.data.rama ? todos.find((a) => a.id === articulo.data.rama) : undefined;
 const ramas = todos.filter((a) => a.data.rama === articulo.id);
+// Una rama no declara serie: hereda la de su artículo padre, para mostrar dónde cae en la línea de tiempo.
+const claveSerie = serieDe((serie ?? padre?.data.serie)?.nombre)?.[0];
 const minutos = minutosDeLectura(articulo.body);
 const url = new URL(urlDe(articulo), Astro.site).href;
 
@@ -99,6 +103,14 @@ const jsonLd = {
         </aside>
       )
     }
+    {
+      claveSerie && (
+        <aside class="serie" data-pagefind-ignore>
+          <p class="rotulo">{t.serieTitulo} · {(serie ?? padre!.data.serie)!.nombre}</p>
+          <LineaDeTiempo serie={claveSerie} idioma={idioma} actual={articulo.id} />
+        </aside>
+      )
+    }
     <footer class="cierre" data-pagefind-ignore>
       {etiquetas.length > 0 && (
         <ul class="etiquetas" aria-label={t.etiquetas}>
@@ -106,8 +118,8 @@ const jsonLd = {
         </ul>
       )}
       <p>
-        {t.cierre}
-        {t.siTeSirvio}
+        {t.cierre}{" "}
+        {t.siTeSirvio}{" "}
         {AUTHOR.linkedin && <><a href={AUTHOR.linkedin}>{t.sigueme}</a> {t.o} </>}
         {t.suscribete} <a href={rutas.rss}>RSS</a>.
       </p>
@@ -146,7 +158,7 @@ const jsonLd = {
   .progreso span {
     display: block;
     height: 100%;
-    background: var(--accent);
+    background: var(--brand);
     transform: scaleX(0);
     transform-origin: 0 50%;
   }
@@ -266,6 +278,18 @@ const jsonLd = {
   .ramas li span {
     color: var(--muted);
     font-size: 14.5px;
+  }
+
+  .serie {
+    margin-top: 32px;
+    padding: 20px 24px 22px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .serie .rotulo {
+    margin: 0 0 16px;
+    color: var(--accent);
   }
 
   .cierre {

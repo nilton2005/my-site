@@ -1,0 +1,142 @@
+---
+titulo: "What's inside a Git object?"
+descripcion: "Open an object from .git/objects with cat-file and with Node: the header, the null byte and your code, compressed with zlib. With commands you can reproduce."
+fecha: 2026-11-14
+borrador: true
+idioma: en
+traduccion: que-hay-dentro-de-un-objeto
+serie:
+  nombre: "Inside Git"
+  orden: 2
+etiquetas: ["git", "zlib", "git internals", "compression"]
+---
+
+import Nota from "../../../components/Nota.astro";
+
+In the [previous article](/en/journal/where-git-stores-your-code/) we followed `hola.js` to its folder: `.git/objects/84/72c73b…`. But we haven't opened the file yet. If you do it with an editor, there's nothing readable. This article is about that: what's inside, and why you can't read it at a glance.
+
+## 1. Reading the object with Git
+
+Git comes with a command to read objects: `git cat-file`. You give it the hash and it returns the type, the size or the content.
+
+```bash
+$ git cat-file -t 8472c73b   # type
+blob
+$ git cat-file -s 8472c73b   # size in bytes
+21
+$ git cat-file -p 8472c73b   # content
+console.log("hola");
+```
+
+Notice that I only typed the first 8 characters of the hash. That's enough for Git: with the first two it knows which folder to look in, and with the rest it finds the file. That's what we measured in [the branch about the spread](/en/journal/how-git-spreads-its-objects/), where we saw how much that lookup would cost if everything were in a single folder.
+
+## 2. But the file on disk isn't readable
+
+`cat-file` does some work for you. If you look at the bytes of the file exactly as they are in `.git/objects/84/72c73b…`, they start like this:
+
+```bash
+$ node -e "console.log(require('fs').readFileSync('.git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74').subarray(0,2).toString('hex'))"
+7801
+```
+
+Those two bytes, `78 01`, are the mark of a **zlib** stream. The file is compressed. And it weighs more than you'd expect for 21 bytes of code:
+
+```bash
+$ wc -c < .git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74
+37
+```
+
+The content is 21 bytes and the file on disk is 37. We'll see why below.
+
+## 3. Opening it with zlib
+
+With Node.js you can decompress it in one line:
+
+```bash
+$ node -e "const fs=require('fs'),zlib=require('zlib');console.log(JSON.stringify(zlib.inflateSync(fs.readFileSync('.git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74')).toString()))"
+"blob 21\u0000console.log(\"hola\");\n"
+```
+
+There it all is: the `blob 21` header, the null byte (`\u0000`) and your code. It's exactly what we fed to SHA-1 in the previous article. `git cat-file -p` only shows you the last part, without the header. And the name `hola.js` doesn't appear anywhere.
+
+## 4. Why compress?
+
+I tried three different contents. The last two weigh 105,000 bytes: one repeats the same line 5,000 times and the other is random bytes.
+
+| Content | Size | On disk |
+| --- | --- | --- |
+| `hola.js` | 21 bytes | 37 bytes |
+| The same line 5,000 times | 105,000 bytes | 623 bytes |
+| 105,000 random bytes | 105,000 bytes | 105,053 bytes |
+
+Three results, three lessons:
+
+- **Repetitive code compresses a lot.** And real code does repeat: keywords, names, indentation. That's why compression usually saves space in a repository.
+- **A small file doesn't benefit.** It grows from 21 to 37 bytes: the `blob 21\0` header and the zlib wrapper weigh more than what is saved.
+- **What looks like randomness doesn't compress.** An already compressed file (a JPG image, a `.zip`) looks like random bytes, so Git gets almost nothing out of it.
+
+You can repeat it in an empty folder:
+
+```bash
+git init -q
+node -e "require('fs').writeFileSync('repetido.js','console.log(\"hola\");\n'.repeat(5000))"
+head -c 105000 /dev/urandom > azar.bin
+for f in repetido.js azar.bin; do
+  h=$(git hash-object -w $f)
+  echo "$f: $(wc -c < $f) bytes, on disk $(wc -c < .git/objects/${h:0:2}/${h:2})"
+done
+```
+
+The random file changes on every run, so its exact size on disk may vary a little; the repetitive one gave me 623 bytes both times I tried it.
+
+## 5. The hash is computed before compressing
+
+There's a question I asked myself: if the file name is the hash, and the file is compressed, is the hash of the compressed content or of the original? I checked by storing the same file with three compression levels (`core.looseCompression`, from 0 to 9) and comparing:
+
+```bash
+for nivel in 0 1 9; do
+  git init -q prueba$nivel
+  h=$(git -C prueba$nivel -c core.looseCompression=$nivel hash-object -w ../repetido.js)
+  echo "level $nivel: $h  $(wc -c < prueba$nivel/.git/objects/${h:0:2}/${h:2}) bytes"
+done
+```
+
+```text
+level 0: 284a9544bd7ba10ce52b469a106aad7a1d58a0b5  105033 bytes
+level 1: 284a9544bd7ba10ce52b469a106aad7a1d58a0b5  623 bytes
+level 9: 284a9544bd7ba10ce52b469a106aad7a1d58a0b5  314 bytes
+```
+
+The hash is the same in all three, but the file on disk weighs 105,033, 623 or 314 bytes. So **the hash identifies the original content, not its compressed form**: you can change how it's stored without changing the object's identity. When we touch nothing, in the experiment above Git wrote 623 bytes, the same as with level 1.
+
+<Nota titulo="Careful">
+  These are <strong>loose</strong> objects: one file per object. When there are many, Git bundles them into <em>packfiles</em>, which are stored differently. They'll get their own part of the series.
+</Nota>
+
+## In short
+
+<div class="tabla">
+
+| What | How | Command |
+| --- | --- | --- |
+| Reading an object | Git strips the header and gives you the content | `git cat-file -p <hash>` |
+| The file on disk | Header + content, compressed with zlib (starts with `78 01`) | `zlib.inflateSync` in Node |
+| The hash | Computed over the uncompressed content | `git hash-object` |
+
+</div>
+
+## Try it yourself
+
+In an empty folder:
+
+```bash
+git init -q
+printf 'console.log("hola");\n' > hola.js
+git hash-object -w hola.js        # 8472c73b…
+git cat-file -p 8472c73b          # your code, without the header
+wc -c < .git/objects/84/72c73b5ad6a5727750f015fbff152a72ecea74   # 37
+```
+
+## What's next
+
+We now know what's inside the blob and how it's stored. But the blob has no name. If you stored two files, `hola.js` and `adios.js`, how does Git remember which is which? In the next **Inside Git** article: *trees*, the object that turns a pile of blobs into a folder.

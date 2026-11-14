@@ -117,6 +117,57 @@ for (let i = 0; i < n; i++) {
 console.log(Math.min(...cajones), Math.max(...cajones)); // 329 460
 ```
 
+## ¿Y si todo estuviera en una sola carpeta?
+
+Hasta aquí di por hecho que repartir es mejor, pero no lo había medido. Git no permite una disposición plana, así que lo simulé con Node: los mismos archivos, con los mismos nombres de hash, en dos disposiciones. Una sola carpeta, y 256 carpetas como `.git/objects/`. Es una simulación del sistema de archivos, no de Git, y los números son de mi computadora (Windows, NTFS). En otro sistema cambiarán, pero la forma de la curva no.
+
+Primero, algo que no esperaba: **buscar un archivo cuando ya conoces su nombre completo apenas cambia.** Con 10 000 archivos tardó 18 µs en las dos disposiciones, y con 100 000, 41 µs en la carpeta plana contra 25 µs en las 256. Mi lectura es que el sistema de archivos guarda los nombres de cada carpeta en una estructura ordenada y no necesita recorrerlos.
+
+Lo que se dispara es todo lo que obliga a **listar** la carpeta. Un caso real: cuando escribes `git cat-file -p 8472c73b` solo le das 8 caracteres. Git no puede construir el nombre del archivo: sabe en qué carpeta mirar (`84/`), pero tiene que mirar dentro y comparar el resto. Con 256 carpetas son unos 390 nombres a comparar. Con una sola, son todos:
+
+| Objetos | Una sola carpeta | 256 carpetas | Diferencia |
+| --- | --- | --- | --- |
+| 1 000 | 0,55 ms | 0,05 ms | ≈ ×11 |
+| 10 000 | 9,2 ms | 0,13 ms | ≈ ×70 |
+| 100 000 | 63,8 ms | 0,23 ms | ≈ ×280 |
+
+Son medianas de 40 búsquedas. En la carpeta plana el tiempo crece a medida que crecen los objetos; en las 256 casi no se nota, porque cada carpeta guarda solo unos cientos de nombres.
+
+Con el conteo pasa algo parecido. Con 100 000 objetos, listar la carpeta plana entera tardó 53 ms y recorrer las 256 carpetas, 61 ms: repartir no ayuda a contar *todo*. Pero estimar con una sola carpeta y multiplicar por 256 tardó 0,18 ms. Esa es la jugada de `git gc --auto`, que veremos enseguida, y solo funciona porque el reparto es parejo.
+
+Puedes repetirlo. Guarda esto como `carpeta.mjs` en una carpeta vacía y ejecútalo con `node carpeta.mjs`. Crea 200 000 archivos y tarda más de un minuto; borra la carpeta al terminar:
+
+```js title="carpeta.mjs"
+import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync, readdirSync } from "node:fs";
+
+const N = 100_000;
+const nombres = Array.from({ length: N }, (_, i) => {
+  const cuerpo = `archivo ${i}\n`;
+  return createHash("sha1").update(`blob ${Buffer.byteLength(cuerpo)}\0${cuerpo}`).digest("hex");
+});
+
+// A: todos en una sola carpeta. B: repartidos en 256, como .git/objects
+mkdirSync("plana", { recursive: true });
+for (let i = 0; i < 256; i++) mkdirSync(`repartida/${i.toString(16).padStart(2, "0")}`, { recursive: true });
+for (const h of nombres) {
+  writeFileSync(`plana/${h}`, "x");
+  writeFileSync(`repartida/${h.slice(0, 2)}/${h.slice(2)}`, "x");
+}
+
+// Resolver un hash abreviado, como `git cat-file -p 8472c73b`: hay que listar la carpeta y comparar
+const prefijo = nombres[12345].slice(0, 8);
+const medir = (f) => {
+  const t = performance.now();
+  f();
+  return `${(performance.now() - t).toFixed(2)} ms`;
+};
+console.log("plana    ", medir(() => readdirSync("plana").filter((n) => n.startsWith(prefijo))));
+console.log("repartida", medir(() => readdirSync(`repartida/${prefijo.slice(0, 2)}`).filter((n) => n.startsWith(prefijo.slice(2)))));
+```
+
+El script mide una sola vez y en frío, así que los números saltan de una ejecución a otra: en una de las mías salió `121.80 ms` contra `0.67 ms`. Lo que no cambia es la proporción.
+
 ## Una consecuencia curiosa: `git gc --auto`
 
 Hay un número que recordaba de alguna parte: unos 6 500 objetos. Resultó ser **6 700**, el valor por defecto de `gc.auto`. Según la documentación, cuando hay *«approximately more than this many loose objects»*, `git gc --auto` empaqueta los objetos sueltos. Fíjate en el *approximately*.
@@ -151,7 +202,7 @@ Es la prueba más bonita de todas: Git **cuenta una carpeta y multiplica por 256
 
 ## Lo que todavía no sé
 
-¿Por qué justo **256** carpetas, y no 16 o 4 096? No encontré una explicación oficial y prefiero no inventarla. Lo que sí puedes razonar: con menos carpetas habría más archivos en cada una; con más, habría más carpetas que crear y recorrer. Si sabes la razón histórica, me encantaría conocerla.
+¿Por qué justo **256** carpetas, y no 16 o 4 096? Ahora sé que repartir importa y cuánto, pero eso no explica el número exacto. No encontré una explicación oficial y prefiero no inventarla. Lo que sí puedes razonar: con menos carpetas habría más archivos en cada una; con más, habría más carpetas que crear y recorrer. Si sabes la razón histórica, me encantaría conocerla.
 
 ## Pruébalo tú
 
@@ -171,4 +222,5 @@ En el `prueba` de arriba, con 2 000 objetos, dice `2` y `16`: un promedio de 7,8
 - Es determinista para cada objeto y estadístico para el conjunto. No hay contradicción.
 - Que dos objetos caigan en la misma carpeta es normal; lo que identifica a un objeto es el hash completo.
 - El azar no se compensa: se diluye. «Más parejo» es en proporción, no en cantidad absoluta.
+- Repartir importa: con 100 000 objetos, resolver un hash abreviado en una sola carpeta fue unas 280 veces más lento en mi prueba. Buscar por el nombre completo casi no cambia.
 - Git incluso se apoya en esto: `git gc --auto` cuenta una carpeta y multiplica por 256.

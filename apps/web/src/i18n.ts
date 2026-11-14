@@ -56,6 +56,11 @@ const es = {
     rama: "rama",
     ramas: "Ramas de este artículo",
     ramasIntro: "Preguntas que surgen al leerlo y que merecen su propio artículo:",
+    serieTitulo: "La serie completa",
+    parte: "Parte",
+    proximamente: "próximamente",
+    borrador: "borrador",
+    estasAqui: "estás aquí",
   },
   pausa: {
     titulo: "Detente y piensa",
@@ -90,7 +95,6 @@ const es = {
     tecnologias: "Tecnologías",
     serie: "Git por dentro",
     rotuloSerie: "Serie",
-    proximo: "Próximo: los <em>trees</em>, o cómo recuerda Git los nombres",
   },
   paleta: {
     etiqueta: "Buscar y navegar",
@@ -164,6 +168,11 @@ const en: typeof es = {
     rama: "branch",
     ramas: "Branches of this article",
     ramasIntro: "Questions that come up while reading it and deserve their own article:",
+    serieTitulo: "The full series",
+    parte: "Part",
+    proximamente: "coming soon",
+    borrador: "draft",
+    estasAqui: "you are here",
   },
   pausa: {
     titulo: "Stop and think",
@@ -198,7 +207,6 @@ const en: typeof es = {
     tecnologias: "Technologies",
     serie: "Inside Git",
     rotuloSerie: "Series",
-    proximo: "Next: <em>trees</em>, or how Git remembers names",
   },
   paleta: {
     etiqueta: "Search and navigate",

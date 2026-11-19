@@ -2,14 +2,15 @@
 titulo: "Thinking in probabilities, not in 0 or 1"
 descripcion: "Git is deterministic for each object and statistical for the whole set. What changes when you stop thinking only in true or false and let statistics do the work."
 fecha: 2026-11-14
-avance: true
 idioma: en
 traduccion: pensar-en-probabilidades
 rama: where-git-stores-your-code
 etiquetas: ["probability", "mindset", "git internals", "backend"]
 ---
 
-import VistaPrevia from "../../../components/VistaPrevia.astro";
+import Dato from "../../../components/Dato.astro";
+import Nota from "../../../components/Nota.astro";
+import { curiosos, historia, usos } from "./datos.ts";
 
 In programming it's natural to think in 0 and 1: something is true or false, a test passes or fails, a file is there or it isn't. Git shows another way of solving problems, and we saw it in [Who decides which folder each object goes in?](/en/journal/how-git-spreads-its-objects/).
 
@@ -17,12 +18,163 @@ In programming it's natural to think in 0 and 1: something is true or false, a t
 
 Every Git object is 100% deterministic: the same content always gives the same hash. But the spread over 256 folders is decided by nobody and counted by nobody: it comes from statistics. Git trusts that adding up many almost-random things gives an almost-even result. It even estimates how many loose objects it has by looking at a single folder and multiplying by 256.
 
-A system can be exact in each piece and lean on statistics for the whole. That is thinking in probabilities, and it's not the same as "not being sure".
+A system can be exact in each piece and lean on statistics for the whole. That is thinking in probabilities, and it's not the same as "not being sure": it's knowing **how** sure you are. "Almost never" can mean 1 in 10 or it can mean 1 in 10<sup>30</sup>, and you can calculate the difference.
 
-## What we'll look at
+It's not a new idea in the backend: it has its <Dato etiqueta="history" titulo="History: structures that trust probability" items={historia} />, some <Dato etiqueta="fun facts" titulo="Fun facts" items={curiosos} /> and it lives in tools you may already use: <Dato etiqueta="where else it's used" titulo="Where else it's used" items={usos} />. They're optional: hover over the word (or tap it) and keep reading whenever you like.
 
-- When it pays to let probability do the work and when it doesn't.
-- Backend examples with code, such as a hash table and spreading load across servers.
-- What you gain and what you pay: the difference between "almost never" and "never".
+In this sub-article I look at three places where this shows up in the backend (a hash table, a load balancer and Git's short hashes), and at the end I try to answer when it pays to let probability do the work and when it doesn't.
 
-<VistaPrevia />
+## First example: a hash table
+
+A hash table stores keys in buckets: it applies a hash function to the key and the result says which bucket it goes in. If two keys land in the same bucket, they get chained. Looking up a key costs walking its chain, and that raises the question: how long can it get?
+
+In the worst case, all keys end up in one bucket, and a lookup would walk everything. But that "worst case" is an absurdly improbable event, the same kind as the folders in the previous sub-article. What happens in practice is decided by statistics: with `n` keys in `m` buckets, a chain has `n/m` elements on average (the *load factor*).
+
+I tried it with 16,384 keys (`user:0`, `user:1`…) in 16,384 buckets, with two hash functions:
+
+| Hash function | Empty buckets | Longest chain |
+| --- | --- | --- |
+| SHA-1 (first 4 bytes) | 37.0% | 6 |
+| Sum of the letters' character codes | 99.2% | 615 |
+
+With SHA-1 the result is what probability predicts. If each key picks a bucket at random, the fraction of empty buckets is `e`<sup>−1</sup> ≈ 36.8% when there are as many keys as buckets, and I measured 37.0%. The longest chain was 6, not 1 and not 16,384; in 10 other repeats it came out between 6 and 8.
+
+With the sum of letters everything breaks, and it's a good contrast: the keys `user:0`, `user:1`… only differ in a few digits, so almost all of them add up to similar totals and pile up. It's what we saw in the folders experiment with the second method (picking the folder from the first character, without a hash). **Probability isn't magic: it's a property the hash function has to earn**, and SHA-1 earns it with the avalanche effect.
+
+### When someone picks the keys
+
+There's a case where that "almost never" stops holding. In 2011, Alexander Klink and Julian Wälde presented at the 28C3 congress an attack against web applications: if the server stores the parameters that arrive in a request in a hash table, and the hash function is known, an attacker can choose keys that **all land in the same bucket**. The table turns into a long list and the server chokes on a small request.
+
+The probability of that happening by chance is still negligible. But the attacker isn't playing by chance: they **choose**. The answer from most languages was to add a secret random seed to the hash function, different on each run of the program, and there are functions designed for this, such as SipHash. The moral: statistics counts on nobody loading the dice.
+
+## Second example: spreading requests across servers
+
+You have 10,000 requests and 10,000 servers. The simplest way to spread them is to pick a server at random for each one. On average each server gets one request, but the average is misleading: what matters to a real system is the **busiest** server.
+
+I simulated it: with pure chance, the busiest server got **6.6 requests on average** (between 6 and 9 over 50 trials), almost 7 times the average. Then I tried a small change: for each request I pick **two** servers at random and send it to the one with less load. The busiest dropped to **3.1 requests** (between 3 and 4).
+
+| How it's spread | Busiest server (average of 50 trials) |
+| --- | --- |
+| Pure chance (one random server) | 6.6 |
+| Two choices (the less loaded of two random ones) | 3.1 |
+
+A pinch of information (comparing two numbers) cut the worst case to less than half, and there was no need to look at all 10,000 servers. This idea is known as the *power of two choices* and comes from Michael Mitzenmacher's 1996 thesis. It's in production today: NGINX offers it since version 1.15.1 as `random two least_conn` and [explains on its blog](https://www.f5.com/company/blog/nginx/nginx-power-of-two-choices-load-balancing-algorithm) when it pays off.
+
+What this example teaches is that thinking in probabilities is **not choosing between chance and order**. It's looking at what happens to the average *and* to the worst case, and seeing what it costs to improve each one. A round robin (one after another) would give exactly one request per server, but it needs an exact, shared counter; with several balancers that don't talk to each other, that's the hard part.
+
+## Third example: "almost never" is not "never"
+
+Git's whole system leans on two different contents not having the same 40-character hash. How much is "almost never"? For `n` objects and a hash of `b` bits, the probability that **some** pair matches is about `n² / 2^(b+1)` (the birthday paradox).
+
+- **Full hash (160 bits).** With a billion objects, 10<sup>18</sup> / 2<sup>161</sup> ≈ **3.4 × 10<sup>−31</sup>**. That's a number that no longer represents a "risk" of anything you could meet in your life.
+- **Short hash (7 characters, 28 bits).** It's what you type every day: `git show 8472c73`.
+
+| Objects | Probability that two share the 7 characters |
+| --- | --- |
+| 1,000 | 0.19% |
+| 10,000 | 17% |
+| 20,000 | 53% |
+| 100,000 | almost 100% |
+
+With about 19,000 objects it's already more likely than not. That's why Git doesn't always use 7: it computes the abbreviation length from the repository's size (`core.abbrev`, on "auto"). And when a prefix is still ambiguous, it **doesn't guess**:
+
+```bash
+git rev-parse 875e
+# error: short object ID 875e is ambiguous
+# hint: The candidates are:
+# hint:   875ed11 blob
+# hint:   875ee55 blob
+```
+
+I caused it on purpose: with 457 loose blobs and a 4-character prefix, one pair matched. Notice how it failed: **out loud**, listing the candidates, rather than returning a wrong object.
+
+The full hash is a different story, and we saw it in article 1: in 2017 the first SHA-1 collision was published (the SHAttered attack). The calculation above assumes nobody is *looking* for a collision on purpose. When someone chooses the inputs, probability no longer rules, just like with hash tables.
+
+## When should you let probability work?
+
+From these three examples I get four questions. If the answers are the ones in the left column, probability is usually a good idea:
+
+| It pays off | It doesn't |
+| --- | --- |
+| There are **many** attempts (the law of large numbers needs a large `n`) | It's a **single** critical event: the law speaks about the average, not about your case |
+| **Nobody chooses** the inputs | An adversary does choose (hash flooding, deliberate collisions) |
+| If it fails, **you notice** or it's cheap (Git warns about an ambiguous prefix) | If it fails, it fails silently |
+| You can **calculate** the probability (`n² / 2^(b+1)`, `16/√n`…) | "I think it's rare" |
+
+The third row is the one that made me think the most. A well-built probabilistic system isn't the one that *never* fails, but the one that **knows when it failed**.
+
+<Nota titulo="Careful">
+  The numbers in this article come from my experiments and from well-known formulas, not from an exhaustive evaluation. The hash tables of real languages, and the algorithms of real load balancers, have more details than fit here.
+</Nota>
+
+## Try it yourself
+
+Save this as `probabilities.mjs` and run it with `node probabilities.mjs`. It runs the article's three experiments (it takes a few seconds):
+
+```js title="probabilities.mjs"
+import { createHash } from "node:crypto";
+
+// 1) Hash table: 16,384 keys in 16,384 buckets, with two different hash functions
+const M = 16_384;
+const withSha1 = (s) => createHash("sha1").update(s).digest().readUInt32BE(0) % M;
+const sumOfLetters = (s) => [...s].reduce((sum, c) => sum + c.charCodeAt(0), 0) % M;
+
+const measureTable = (hash) => {
+  const buckets = new Array(M).fill(0);
+  for (let i = 0; i < M; i++) buckets[hash(`user:${i}`)]++;
+  const empty = buckets.filter((c) => c === 0).length;
+  return `${((empty / M) * 100).toFixed(1)}% empty buckets, longest chain: ${Math.max(...buckets)}`;
+};
+console.log("SHA-1          →", measureTable(withSha1));
+console.log("sum of letters →", measureTable(sumOfLetters));
+
+// 2) Spread 10,000 requests over 10,000 servers: pure chance against "two choices"
+const N = 10_000;
+const rnd = () => Math.floor(Math.random() * N);
+const spread = (twoChoices) => {
+  const load = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) {
+    let server = rnd();
+    if (twoChoices) {
+      const other = rnd();
+      if (load[other] < load[server]) server = other; // the less loaded of the two
+    }
+    load[server]++;
+  }
+  return Math.max(...load); // what the busiest server receives
+};
+const trial = (twoChoices) => {
+  const maxima = Array.from({ length: 50 }, () => spread(twoChoices));
+  const mean = maxima.reduce((a, b) => a + b) / maxima.length;
+  return `busiest server: ${mean.toFixed(1)} requests on average (from ${Math.min(...maxima)} to ${Math.max(...maxima)}) over 50 trials`;
+};
+console.log("pure chance    →", trial(false));
+console.log("two choices    →", trial(true));
+
+// 3) How likely is it that two objects share their first 7 characters (28 bits)?
+const collision = (n, bits) => -Math.expm1(-(n * (n - 1)) / 2 / 2 ** bits);
+for (const n of [1_000, 10_000, 20_000, 100_000]) console.log(`${n} objects → ${(collision(n, 28) * 100).toFixed(2)}%`);
+```
+
+On my computer it printed:
+
+```text
+SHA-1          → 37.0% empty buckets, longest chain: 6
+sum of letters → 99.2% empty buckets, longest chain: 615
+pure chance    → busiest server: 6.6 requests on average (from 6 to 9) over 50 trials
+two choices    → busiest server: 3.1 requests on average (from 3 to 4) over 50 trials
+1000 objects → 0.19%
+10000 objects → 16.99%
+20000 objects → 52.53%
+100000 objects → 100.00%
+```
+
+The servers part uses `Math.random`, so your numbers will vary a little; what doesn't change is that the second line comes out much lower than the first.
+
+## In short
+
+- A system can be exact in each piece and statistical as a whole: Git is.
+- Thinking in probabilities means putting a number on uncertainty, not saying "I don't know". "Almost never" can be 17% (short hashes with 10,000 objects) or 3 × 10<sup>−31</sup> (the full hash with a billion).
+- Probability has to be earned: with SHA-1 the buckets spread as theory predicts (longest chain: 6); with the sum of letters they don't (615).
+- Pure chance is good on average and weak in the worst case; choosing between **two** options cut the worst case from 6.6 to 3.1 in my simulation.
+- It pays off when there are many attempts, nobody chooses the inputs, failure is noticeable and you can calculate the probability. When there's an adversary, statistics no longer protects you.

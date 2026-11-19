@@ -2,14 +2,15 @@
 titulo: "Pensar en probabilidades, no en 0 o 1"
 descripcion: "Git es determinista en cada objeto y estadístico en el conjunto. Qué cambia cuando dejas de pensar solo en verdadero o falso y dejas trabajar a la estadística."
 fecha: 2026-11-14
-avance: true
 idioma: es
 traduccion: thinking-in-probabilities
 rama: donde-guarda-git
 etiquetas: ["probabilidad", "mentalidad", "git internals", "backend"]
 ---
 
-import VistaPrevia from "../../../components/VistaPrevia.astro";
+import Dato from "../../../components/Dato.astro";
+import Nota from "../../../components/Nota.astro";
+import { curiosos, historia, usos } from "./datos.ts";
 
 En programación es natural pensar en 0 y 1: algo es verdadero o falso, una prueba pasa o falla, un archivo está o no está. Git muestra otra manera de resolver problemas, y la vimos en [¿Quién decide en qué carpeta va cada objeto?](/diario/como-reparte-git-sus-objetos/).
 
@@ -17,12 +18,163 @@ En programación es natural pensar en 0 y 1: algo es verdadero o falso, una prue
 
 Cada objeto de Git es 100 % determinista: el mismo contenido da siempre el mismo hash. Pero el reparto en 256 carpetas no lo decide ni lo cuenta nadie: sale de la estadística. Git confía en que sumar muchas cosas casi aleatorias da un resultado casi parejo. Incluso estima cuántos objetos sueltos tiene mirando una sola carpeta y multiplicando por 256.
 
-Un sistema puede ser exacto en cada pieza y apoyarse en la estadística en el conjunto. Eso es pensar en probabilidades, y no es lo mismo que «no estar seguro».
+Un sistema puede ser exacto en cada pieza y apoyarse en la estadística en el conjunto. Eso es pensar en probabilidades, y no es lo mismo que «no estar seguro»: es saber **cuánto** de seguro estás. «Casi nunca» puede significar 1 entre 10 y puede significar 1 entre 10<sup>30</sup>, y esa diferencia la puedes calcular.
 
-## Lo que vamos a ver
+No es una idea nueva en el backend: tiene su <Dato etiqueta="historia" titulo="Historia: estructuras que confían en la probabilidad" items={historia} />, unos <Dato etiqueta="datos curiosos" titulo="Datos curiosos" items={curiosos} /> y está en herramientas que quizás ya usas: <Dato etiqueta="dónde más se usa" titulo="Dónde más se usa" items={usos} />. Son opcionales: pasa el cursor por la palabra (o tócala) y sigue leyendo cuando quieras.
 
-- Cuándo conviene dejar que la probabilidad trabaje y cuándo no.
-- Ejemplos del backend con código, como una tabla hash y el reparto de carga entre servidores.
-- Qué se gana y qué se paga: la diferencia entre «casi nunca» y «nunca».
+En este subartículo miro tres lugares donde esto aparece en el backend (una tabla hash, un balanceador de carga y los hashes cortos de Git), y al final intento responder cuándo conviene dejar que la probabilidad trabaje y cuándo no.
 
-<VistaPrevia />
+## Primer ejemplo: una tabla hash
+
+Una tabla hash guarda claves en cubetas: aplica una función hash a la clave y el resultado dice en qué cubeta va. Si dos claves caen en la misma cubeta, se encadenan. Buscar una clave cuesta recorrer su cadena, y ahí aparece la pregunta: ¿qué tan larga puede ser?
+
+En el peor caso, todas las claves en una cubeta, y buscar sería recorrer todo. Pero ese «peor caso» es un evento absurdamente improbable, del mismo tipo que el de las carpetas del subartículo anterior. Lo que pasa en la práctica lo decide la estadística: con `n` claves en `m` cubetas, una cadena tiene en promedio `n/m` elementos (el *factor de carga*).
+
+Lo probé con 16 384 claves (`usuario:0`, `usuario:1`…) en 16 384 cubetas, con dos funciones hash:
+
+| Función hash | Cubetas vacías | Cadena más larga |
+| --- | --- | --- |
+| SHA-1 (primeros 4 bytes) | 36,7 % | 7 |
+| Suma de los códigos de las letras | 99,2 % | 615 |
+
+Con SHA-1 el resultado es el que predice la probabilidad. Si cada clave elige una cubeta al azar, la fracción de cubetas vacías es `e`<sup>−1</sup> ≈ 36,8 % cuando hay tantas claves como cubetas, y medí 36,7 %. La cadena más larga fue de 7, no de 1 ni de 16 384, y en 10 repeticiones salió entre 6 y 8.
+
+Con la suma de letras todo se rompe, y es un buen contraste: las claves `usuario:0`, `usuario:1`… solo se diferencian en unos dígitos, así que casi todas suman parecido y se amontonan. Es lo que vimos en el experimento de las carpetas con el segundo método (elegir la carpeta por el primer carácter, sin hash). **La probabilidad no es magia: es una propiedad que la función hash tiene que ganarse**, y SHA-1 se la gana con el efecto avalancha.
+
+### Cuando alguien elige las claves
+
+Hay un caso donde ese «casi nunca» deja de valer. En 2011, Alexander Klink y Julian Wälde presentaron en el congreso 28C3 un ataque contra aplicaciones web: si el servidor guarda en una tabla hash los parámetros que llegan en una petición, y la función hash es conocida, un atacante puede elegir claves que caigan **todas en la misma cubeta**. La tabla se convierte en una lista larga y el servidor se ahoga con una petición pequeña.
+
+La probabilidad de que eso pase por azar sigue siendo despreciable. Pero el atacante no juega al azar: **elige**. La respuesta de la mayoría de los lenguajes fue añadir una semilla secreta y aleatoria a la función hash, distinta en cada ejecución del programa, y existen funciones diseñadas para esto, como SipHash. La moraleja: la estadística cuenta con que nadie manipule los dados.
+
+## Segundo ejemplo: repartir peticiones entre servidores
+
+Tienes 10 000 peticiones y 10 000 servidores. La forma más simple de repartir es elegir un servidor al azar para cada una. En promedio, cada servidor recibe una petición, pero el promedio engaña: lo que le importa a un sistema real es el servidor **más cargado**.
+
+Lo simulé: con azar puro, el servidor más cargado recibió **6,9 peticiones de media** (entre 6 y 9 en 50 pruebas), casi 7 veces el promedio. Entonces probé un cambio pequeño: para cada petición elijo **dos** servidores al azar y la mando al que tenga menos carga. El más cargado bajó a **3,0 peticiones** (entre 3 y 4).
+
+| Cómo se reparte | Servidor más cargado (promedio de 50 pruebas) |
+| --- | --- |
+| Azar puro (un servidor al azar) | 6,9 |
+| Dos opciones (el menos cargado de dos al azar) | 3,0 |
+
+Una pizca de información (comparar dos números) cambió el peor caso a menos de la mitad, y no hubo que mirar los 10 000 servidores. Esta idea se conoce como *power of two choices* y viene de la tesis de Michael Mitzenmacher (1996). Hoy está en producción: NGINX la ofrece desde la versión 1.15.1 como `random two least_conn` y [explica en su blog](https://www.f5.com/company/blog/nginx/nginx-power-of-two-choices-load-balancing-algorithm) cuándo conviene.
+
+Lo que enseña este ejemplo es que pensar en probabilidades **no es elegir entre azar y orden**. Es mirar qué pasa con el promedio *y* con el peor caso, y ver cuánto cuesta mejorar cada uno. Un reparto en círculo (uno tras otro) daría exactamente una petición por servidor, pero exige un contador exacto y compartido; con varios balanceadores que no se hablan entre sí, eso es lo difícil.
+
+## Tercer ejemplo: «casi nunca» no es «nunca»
+
+Todo el sistema de Git se apoya en que dos contenidos distintos no tengan el mismo hash de 40 caracteres. ¿Cuánto es «casi nunca»? Para `n` objetos y un hash de `b` bits, la probabilidad de que **algún** par coincida es aproximadamente `n² / 2^(b+1)` (la paradoja del cumpleaños).
+
+- **Hash completo (160 bits).** Con mil millones de objetos, 10<sup>18</sup> / 2<sup>161</sup> ≈ **3,4 × 10<sup>−31</sup>**. Es un número que ya no representa «riesgo» de nada que puedas encontrar en tu vida.
+- **Hash corto (7 caracteres, 28 bits).** Es lo que escribes a diario: `git show 8472c73`.
+
+| Objetos | Probabilidad de que dos compartan los 7 caracteres |
+| --- | --- |
+| 1 000 | 0,19 % |
+| 10 000 | 17 % |
+| 20 000 | 53 % |
+| 100 000 | casi 100 % |
+
+Con unos 19 000 objetos ya es más probable que sí a que no. Por eso Git no usa siempre 7: calcula el largo de la abreviatura según el tamaño del repositorio (`core.abbrev`, en «auto»). Y cuando pese a eso un prefijo es ambiguo, **no adivina**:
+
+```bash
+git rev-parse 875e
+# error: short object ID 875e is ambiguous
+# hint: The candidates are:
+# hint:   875ed11 blob
+# hint:   875ee55 blob
+```
+
+Lo provoqué a propósito: con 457 blobs sueltos y un prefijo de 4 caracteres, hubo un par que coincidía. Fíjate en cómo falló: **en voz alta**, listando los candidatos, y no devolviendo un objeto equivocado.
+
+El hash completo es otra historia, y ya la vimos en el artículo 1: en 2017 se publicó la primera colisión de SHA-1 (ataque SHAttered). El cálculo de arriba supone que nadie *busca* una colisión a propósito. Cuando alguien elige las entradas, la probabilidad ya no manda, igual que con las tablas hash.
+
+## ¿Cuándo dejar que la probabilidad trabaje?
+
+De estos tres ejemplos saco cuatro preguntas. Si las respuestas son las de la columna izquierda, la probabilidad suele ser buena idea:
+
+| Sí conviene | No conviene |
+| --- | --- |
+| Hay **muchos** intentos (la ley de los grandes números necesita `n` grande) | Es **un solo** evento crítico: la ley habla del promedio, no de tu caso |
+| **Nadie elige** las entradas | Hay un adversario que sí elige (hash flooding, colisiones buscadas) |
+| Si falla, **se nota** o cuesta poco (Git avisa de un prefijo ambiguo) | Si falla, falla en silencio |
+| Puedes **calcular** la probabilidad (`n² / 2^(b+1)`, `16/√n`…) | «Creo que es raro» |
+
+La tercera fila es la que más me hizo pensar. Un sistema probabilístico bien hecho no es el que *nunca* falla, sino el que **sabe cuándo falló**.
+
+<Nota titulo="Ojo">
+  Los números de este artículo son de mis experimentos y de fórmulas conocidas, no de una evaluación exhaustiva. Los hashes de las tablas hash de los lenguajes reales, y los algoritmos de los balanceadores, tienen más detalles que los que cabían aquí.
+</Nota>
+
+## Pruébalo tú
+
+Guarda esto como `probabilidades.mjs` y ejecútalo con `node probabilidades.mjs`. Hace los tres experimentos del artículo (tarda unos segundos):
+
+```js title="probabilidades.mjs"
+import { createHash } from "node:crypto";
+
+// 1) Tabla hash: 16 384 claves en 16 384 cubetas, con dos funciones hash distintas
+const M = 16_384;
+const conSha1 = (s) => createHash("sha1").update(s).digest().readUInt32BE(0) % M;
+const sumaDeLetras = (s) => [...s].reduce((suma, c) => suma + c.charCodeAt(0), 0) % M;
+
+const medirTabla = (hash) => {
+  const cubetas = new Array(M).fill(0);
+  for (let i = 0; i < M; i++) cubetas[hash(`usuario:${i}`)]++;
+  const vacias = cubetas.filter((c) => c === 0).length;
+  return `${((vacias / M) * 100).toFixed(1)} % de cubetas vacías, cadena más larga: ${Math.max(...cubetas)}`;
+};
+console.log("SHA-1          →", medirTabla(conSha1));
+console.log("suma de letras →", medirTabla(sumaDeLetras));
+
+// 2) Repartir 10 000 peticiones entre 10 000 servidores: azar puro contra «dos opciones»
+const N = 10_000;
+const al = () => Math.floor(Math.random() * N);
+const repartir = (dosOpciones) => {
+  const carga = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) {
+    let servidor = al();
+    if (dosOpciones) {
+      const otro = al();
+      if (carga[otro] < carga[servidor]) servidor = otro; // el menos cargado de los dos
+    }
+    carga[servidor]++;
+  }
+  return Math.max(...carga); // lo que recibe el servidor más cargado
+};
+const probar = (dosOpciones) => {
+  const maximos = Array.from({ length: 50 }, () => repartir(dosOpciones));
+  const media = maximos.reduce((a, b) => a + b) / maximos.length;
+  return `servidor más cargado: ${media.toFixed(1)} peticiones de media (de ${Math.min(...maximos)} a ${Math.max(...maximos)}) en 50 pruebas`;
+};
+console.log("azar puro      →", probar(false));
+console.log("dos opciones   →", probar(true));
+
+// 3) ¿Qué tan probable es que dos objetos compartan los primeros 7 caracteres (28 bits)?
+const colision = (n, bits) => -Math.expm1(-(n * (n - 1)) / 2 / 2 ** bits);
+for (const n of [1_000, 10_000, 20_000, 100_000]) console.log(`${n} objetos → ${(colision(n, 28) * 100).toFixed(2)} %`);
+```
+
+En mi computadora salió:
+
+```text
+SHA-1          → 36.7 % de cubetas vacías, cadena más larga: 7
+suma de letras → 99.2 % de cubetas vacías, cadena más larga: 615
+azar puro      → servidor más cargado: 6.9 peticiones de media (de 6 a 9) en 50 pruebas
+dos opciones   → servidor más cargado: 3.0 peticiones de media (de 3 a 4) en 50 pruebas
+1000 objetos → 0.19 %
+10000 objetos → 16.99 %
+20000 objetos → 52.53 %
+100000 objetos → 100.00 %
+```
+
+La parte de los servidores usa `Math.random`, así que tus números variarán un poco; lo que no cambia es que la segunda línea sale mucho más baja que la primera.
+
+## En resumen
+
+- Un sistema puede ser exacto en cada pieza y estadístico en el conjunto: Git lo es.
+- Pensar en probabilidades es poner un número a la incertidumbre, no decir «no sé». «Casi nunca» puede ser 17 % (hashes cortos con 10 000 objetos) o 3 × 10<sup>−31</sup> (el hash completo con mil millones).
+- La probabilidad hay que ganársela: con SHA-1 las cubetas se reparten como predice la teoría (cadena más larga: 7); con la suma de letras no (615).
+- El azar puro es bueno en promedio y flojo en el peor caso; elegir entre **dos** opciones bajó el peor caso de 6,9 a 3,0 en mi simulación.
+- Conviene cuando hay muchos intentos, nadie elige las entradas, el fallo se nota y puedes calcular la probabilidad. Si hay un adversario, la estadística ya no te protege.

@@ -2,16 +2,18 @@
 titulo: "The law of large numbers, with graphs"
 descripcion: "Why 10,000 coin flips get close to 50% and 10 don't, and what that has to do with Git's 256 folders. With graphs and the math behind it."
 fecha: 2026-11-14
-avance: true
 idioma: en
 traduccion: ley-de-los-grandes-numeros
 rama: where-git-stores-your-code
 etiquetas: ["probability", "law of large numbers", "git internals", "statistics"]
 ---
 
-import VistaPrevia from "../../../components/VistaPrevia.astro";
+import Grafica from "../../../components/figuras/GraficasGrandesNumeros.astro";
+import Dato from "../../../components/Dato.astro";
+import Nota from "../../../components/Nota.astro";
+import { curiosos, historia, usos } from "./datos.ts";
 
-In the sub-article [Who decides which folder each object goes in?](/en/journal/how-git-spreads-its-objects/) there was a sentence with fine print: "more even" means more even *in proportion*, not in count. Here we'll look at where that comes from, with the math and with graphs.
+In the sub-article [Who decides which folder each object goes in?](/en/journal/how-git-spreads-its-objects/) there was a sentence with fine print: "more even" means more even *in proportion*, not in count. Here we'll look at where that comes from, with the math and with graphs. The numbers come from real runs, and at the end you get the code to repeat them.
 
 ## The question
 
@@ -26,11 +28,139 @@ In the folders experiment something showed up that seems to contradict it:
 
 The difference **grew**, from 131 to 296 objects, but in proportion it **shrank**, from 34% to 8%. Both things are true at once, and the law of large numbers explains why.
 
-## What we'll look at
+## Five coins, a hundred thousand flips
 
-- The statement of the law, without the fine print.
-- A coin simulation, with graphs, to watch the proportion approach 50% while the absolute difference drifts away.
-- The typical deviation, which for Git's folders is about √(n/256).
-- How all of this applies to Git.
+I flipped a virtual coin 100,000 times, five times in a row (five "runs"), and wrote down the share of heads after 1 flip, 2, 3… up to 100,000. The horizontal axis is logarithmic so the first flips and the last ones get equal room.
 
-<VistaPrevia />
+<Grafica grafica="proporcion" idioma="en" />
+
+Three things to notice:
+
+- At the start the lines scatter between 0% and 100%. With a single flip the share can only be 0% or 100%.
+- Then they close in, and the yellow band (one standard deviation, which I explain next) narrows along with them.
+- At the end all five finish near 50%: between 49.80% and 50.01%. None landed on *exactly* 50, and there was no reason they should.
+
+And no flip "corrected" another. What happens is that each new flip weighs less: flip 100,000 moves the share by at most 0.001 points; flip 10 moves it by up to 10.
+
+## The same coin, seen in heads
+
+Now, with the same five runs, look at something else: not the percentage, but how many heads you are **over or under** the half. If 1,000 flips give 520 heads, the difference is +20.
+
+<Grafica grafica="diferencia" idioma="en" />
+
+Here the opposite happens: the lines **spread out** instead of closing in. The one that ended furthest, seed 42, finished with 202 heads fewer than half (49,798 out of 100,000). In proportion that's only a 0.2% gap, but in absolute heads it's far more than anything in the first flips.
+
+Nothing odd: all five move inside a band that widens with the square root of the flips. In my runs, 1,003 of the 1,005 points I drew fell within two standard deviations of the half.
+
+It's the same paradox as the folders table, now in a coin: **the absolute difference grows and the proportion shrinks.**
+
+## The math, step by step
+
+Each flip is a variable worth 1 (heads) or 0 (tails), each with probability 1/2. Let `H` be the number of heads in `n` flips.
+
+1. **Average.** Each flip contributes 1/2 a head on average, so `H` is `n/2` on average.
+2. **Variation of one flip.** A single flip varies on its own: its variance is `p × (1 − p)` = 1/4.
+3. **The flips are independent**, and when variables are independent **their variances add up**. With `n` flips, the variance of `H` is `n/4`.
+4. **The standard deviation** is the square root of the variance: `√n / 2`. That's the band in the second graph.
+5. **The share** is `H / n`. Dividing by `n`, its standard deviation becomes `(√n / 2) / n` = `1 / (2√n)`, or `50 / √n` percentage points. That's the band in the first graph.
+
+What matters is in steps 4 and 5: the number of heads strays like `√n`, and the share strays like `1/√n`. As `n` grows, `√n` grows and `1/√n` shrinks, and both happen in the same coin.
+
+| Flips | Standard deviation in heads (√n / 2) | Standard deviation in share (50 / √n) |
+| --- | --- | --- |
+| 10 | 1.6 heads | 15.8 points |
+| 100 | 5 heads | 5 points |
+| 1,000 | 15.8 heads | 1.6 points |
+| 10,000 | 50 heads | 0.5 points |
+| 100,000 | 158 heads | 0.16 points |
+
+That answers the opening question. 7 heads out of 10 is about 1.3 standard deviations from the half, which is common: with a fair coin you get **7 or more heads in 17.2% of batches of 10**. A 70% share of heads in 10,000 flips, on the other hand, would be about 40 standard deviations out, something you will never see.
+
+### What the law says, in big print
+
+The **(weak) law of large numbers** says that, for any margin ε you pick, however small, the probability that the share strays from the true value by more than ε goes to zero as `n` grows:
+
+> P( | H/n − 1/2 | > ε ) → 0 as n → ∞
+
+It's a statement about the **share**. It doesn't say `H − n/2` goes to zero (you've seen it doesn't), and it doesn't say chance makes up for anything. It says that at a large scale, the disorder of each flip stops mattering *in proportion*.
+
+This law has more than three centuries of <Dato etiqueta="history" titulo="History of the law of large numbers" items={historia} />, some people flipped coins thousands of times to check it (<Dato etiqueta="famous experiments" titulo="Famous experiments" items={curiosos} />) and it shows up in more places than you'd think: <Dato etiqueta="where else it's used" titulo="Where else it's used" items={usos} />. They're optional: hover over the word (or tap it) and keep reading whenever you like.
+
+<Nota titulo="Careful: the law has conditions">
+  It works when the attempts are <strong>independent</strong> and the average exists. There are cases where it fails: the average of many samples from a Cauchy distribution doesn't settle on anything, because it is another Cauchy, just as spread out as a single sample. With a coin, or with a hash, those conditions hold.
+</Nota>
+
+## The 256 folders are 256 coins
+
+A Git object lands in folder `84` or in `a3`, and between the two there are 254 more options. For **one** particular folder it's a biased coin: it lands there with probability 1/256 and somewhere else with probability 255/256.
+
+With `n` objects, the number that end up in that folder behaves like `H`, with a different probability:
+
+- Average: `n / 256`.
+- Standard deviation: `√( n × (1/256) × (255/256) )`, which is almost `√(n / 256)`.
+- **Relative deviation** (deviation ÷ average): `√(n/256) / (n/256)` = `16 / √n`.
+
+It's the same formula as the coin, with a different number. And you can see it in all 256 folders at once, with real SHA-1 (the `archivo 0`, `archivo 1`… blobs from the same script as the table above):
+
+<Grafica grafica="carpetas" idioma="en" />
+
+With 1,000 objects there are bars at almost three times the average, and empty folders. With 100,000, all of them sit in a band (329 to 460). With a million, the band is so narrow the bars almost stick to the average line.
+
+Theory says the relative deviation is `16/√n`. I measured it at six sizes and it nearly matches:
+
+<Grafica grafica="dispersion" idioma="en" />
+
+Each point on that graph is **a single run** of 256 folders, so it carries some noise. With 100,000 objects my run gave 5.3% and theory says 5.06%; I repeated the experiment 30 times with other file names and the average was 5.02%.
+
+### A prediction
+
+With the formula I can do something more satisfying than explaining what already happened: predict. With **10 million** objects, the standard deviation would be `√(10,000,000 / 256)` ≈ 198 around an average of 39,062, that is **0.51%**. And the difference between the fullest and the emptiest folder, which in my runs was about 5 to 6 standard deviations, would be around 1,100.
+
+I measured it with 10,000,000 SHA-1 hashes (it took almost a minute). The lowest folder had 38,404 objects and the highest 39,566: a difference of **1,162**, and a relative deviation of **0.50%**. The prediction held.
+
+## What this changes in Git
+
+- **Nobody spreads anything, and the spread comes out even** because each object is an independent attempt with almost the same probability of landing in each folder. The law of large numbers does the rest.
+- **More even** means more even in proportion. With a million objects one folder can hold 296 more than another, and still none strays more than 4% from the average.
+- **The `git gc --auto` estimate** (count one folder and multiply by 256) leans on the same thing. With few objects it would be very noisy: in the 2,000-object repository from the previous sub-article, the emptiest folder had 2 and the fullest 16, around an average of 7.8. With thousands and thousands of objects, each folder sits close to the average.
+- **It's probability, not a guarantee**, and that takes us to the next sub-article: [Thinking in probabilities, not in 0 or 1](/en/journal/thinking-in-probabilities/).
+
+## Try it yourself
+
+Save this as `monedas.mjs` and run it with `node monedas.mjs`. It uses `Math.random`, so your output will differ from mine, but the shape won't:
+
+```js title="monedas.mjs"
+const flip = (n) => {
+  let heads = 0;
+  for (let i = 0; i < n; i++) if (Math.random() < 0.5) heads++;
+  return heads;
+};
+
+for (const n of [10, 100, 1_000, 10_000, 100_000, 1_000_000]) {
+  const heads = flip(n);
+  console.log(`${n} flips: ${((heads / n) * 100).toFixed(2)}% heads, difference from half: ${heads - n / 2}`);
+}
+```
+
+In one of my runs the output was:
+
+```text
+10 flips: 60.00% heads, difference from half: 1
+100 flips: 42.00% heads, difference from half: -8
+1000 flips: 47.10% heads, difference from half: -29
+10000 flips: 49.98% heads, difference from half: -2
+100000 flips: 49.82% heads, difference from half: -181
+1000000 flips: 50.03% heads, difference from half: 290
+```
+
+Run it several times: the percentage keeps sticking to 50 while the difference from half gets bigger. Both things, at the same time.
+
+The data behind this article's graphs (with a fixed seed, so they always come out the same) is generated by `scripts/datos-grandes-numeros.mjs` in this site's repository.
+
+## In short
+
+- The share closes in on the true probability and the absolute difference drifts away: one shrinks like `1/√n` and the other grows like `√n`.
+- Chance does **not make up for anything**: it dilutes. Each new flip weighs less.
+- The standard deviation of `n` flips of a fair coin is `√n / 2`; for the share, `50 / √n` points.
+- A Git folder is a biased coin (1/256), so its relative deviation is `16 / √n`. Measured: 5.3% with 100,000 objects (5.02% on average over 30 repeats) and 0.50% with 10 million.
+- The law needs independent attempts and lots of them: with few, chance shows.

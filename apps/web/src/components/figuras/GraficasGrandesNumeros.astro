@@ -1,0 +1,410 @@
+---
+// Las cuatro gráficas de «La ley de los grandes números». Son SVG calculados al compilar (sin JavaScript) con los datos
+// reales de src/data/grandes-numeros.ts, que genera scripts/datos-grandes-numeros.mjs (monedas con semilla fija y
+// SHA-1 reales). Cada gráfica trae su tabla de datos, para lectores de pantalla y para quien quiera los números.
+import { corridas, carpetas } from "../../data/grandes-numeros";
+
+interface Props {
+  grafica: "proporcion" | "diferencia" | "carpetas" | "dispersion";
+  idioma?: "es" | "en";
+}
+const { grafica, idioma = "es" } = Astro.props;
+
+const T = {
+  es: {
+    corrida: "corrida",
+    verDatos: "Ver los datos de la gráfica",
+    lanzamientos: "lanzamientos",
+    proporcion: {
+      alt: "Proporción de caras según el número de lanzamientos, en cinco corridas. Con pocos lanzamientos las líneas oscilan entre 0 y 100 por ciento; con 100 000 todas quedan pegadas al 50 por ciento.",
+      cap: "Cinco corridas de 100 000 lanzamientos: la proporción de caras se acerca al 50 %.",
+      ejeX: "lanzamientos (escala logarítmica)",
+      ejeY: "% de caras",
+      esperado: "50 % esperado",
+      banda: "±1 desvío típico: 50/√n %",
+    },
+    diferencia: {
+      alt: "Diferencia entre las caras obtenidas y la mitad de los lanzamientos, en cinco corridas. Las líneas se alejan de cero a medida que hay más lanzamientos, pero se mantienen dentro de una banda que crece como la raíz cuadrada.",
+      cap: "Las mismas corridas, ahora en caras absolutas: la diferencia respecto a la mitad no se achica, se ensancha.",
+      ejeX: "lanzamientos",
+      ejeY: "caras − n/2",
+      b1: "±1 desvío: √n / 2",
+      b2: "±2 desvíos: √n",
+    },
+    carpetas: {
+      alt: "Objetos por carpeta, como porcentaje del promedio, para 1 000, 100 000 y 1 000 000 de objetos. Con 1 000 las 256 barras son muy desiguales; con un millón casi todas quedan en la línea del promedio.",
+      cap: "Las 256 carpetas con SHA-1 reales. Cada barra es una carpeta; la altura, su cantidad respecto al promedio.",
+      objetos: "objetos",
+      rango: "menor–mayor",
+      promedio: "promedio",
+      ejeY: "% del promedio",
+    },
+    dispersion: {
+      alt: "Desvío relativo de las 256 carpetas según el número de objetos, en escala logarítmica en los dos ejes. Los seis puntos medidos caen sobre la recta que predice la teoría, 1600 dividido por la raíz de n.",
+      cap: "Qué tanto se aleja una carpeta del promedio (desvío típico ÷ promedio), medido y según la teoría. Los dos ejes son logarítmicos.",
+      ejeX: "objetos (escala logarítmica)",
+      ejeY: "desvío ÷ promedio (%, log.)",
+      medido: "medido",
+      teoria: "teoría: 1600/√n %",
+      cols: ["objetos", "medido", "teoría"],
+    },
+  },
+  en: {
+    corrida: "run",
+    verDatos: "See the chart's data",
+    lanzamientos: "flips",
+    proporcion: {
+      alt: "Share of heads by number of flips, in five runs. With few flips the lines swing between 0 and 100 percent; with 100,000 they all sit right at 50 percent.",
+      cap: "Five runs of 100,000 flips: the share of heads closes in on 50%.",
+      ejeX: "flips (logarithmic scale)",
+      ejeY: "% heads",
+      esperado: "50% expected",
+      banda: "±1 standard deviation: 50/√n %",
+    },
+    diferencia: {
+      alt: "Difference between the heads obtained and half the flips, in five runs. The lines drift away from zero as flips increase, but stay inside a band that grows like the square root.",
+      cap: "The same runs, now in absolute heads: the gap from the half doesn't shrink, it widens.",
+      ejeX: "flips",
+      ejeY: "heads − n/2",
+      b1: "±1 deviation: √n / 2",
+      b2: "±2 deviations: √n",
+    },
+    carpetas: {
+      alt: "Objects per folder, as a percentage of the average, for 1,000, 100,000 and 1,000,000 objects. With 1,000 the 256 bars are very uneven; with a million almost all sit on the average line.",
+      cap: "The 256 folders with real SHA-1. Each bar is a folder; its height is its count relative to the average.",
+      objetos: "objects",
+      rango: "lowest–highest",
+      promedio: "average",
+      ejeY: "% of the average",
+    },
+    dispersion: {
+      alt: "Relative deviation of the 256 folders by number of objects, on a logarithmic scale on both axes. The six measured points fall on the line that theory predicts, 1600 divided by the square root of n.",
+      cap: "How far a folder strays from the average (standard deviation ÷ average), measured and by theory. Both axes are logarithmic.",
+      ejeX: "objects (logarithmic scale)",
+      ejeY: "deviation ÷ average (%, log)",
+      medido: "measured",
+      teoria: "theory: 1600/√n %",
+      cols: ["objects", "measured", "theory"],
+    },
+  },
+}[idioma];
+
+// ---- utilidades ----
+const nf = (n: number, dec = 0) => {
+  const s = n.toLocaleString("en-US", { maximumFractionDigits: dec, minimumFractionDigits: dec });
+  return idioma === "es" ? s.replace(/,/g, " ").replace(".", ",") : s;
+};
+const W = 640;
+const ML = 66, MR = 20, MT = 18, MB = 50;
+const lin = (v: number, a: number, b: number, p0: number, p1: number) => p0 + ((v - a) / (b - a)) * (p1 - p0);
+const lg = (v: number, a: number, b: number, p0: number, p1: number) =>
+  p0 + ((Math.log10(v) - Math.log10(a)) / (Math.log10(b) - Math.log10(a))) * (p1 - p0);
+const f = (n: number) => n.toFixed(1);
+const ruta = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? "L" : "M"}${f(x)} ${f(y)}`).join("");
+
+const H = grafica === "carpetas" ? 300 : 340;
+const X0 = ML, X1 = W - MR, Y0 = MT, Y1 = H - MB; // Y1 = abajo
+const decadas = [1, 10, 100, 1000, 10000, 100000];
+const etiquetaDecada = (n: number) => nf(n);
+
+// ---- cada gráfica prepara: marcas del eje, líneas, bandas, tabla ----
+type Eje = { v: number; t: string };
+let ticksX: Eje[] = [], ticksY: Eje[] = [];
+let px = (_: number) => 0, py = (_: number) => 0;
+let bandas: { d: string; clase: string }[] = [];
+let lineas: { d: string; clase: string; titulo?: string }[] = [];
+let etiquetas: { x: number; y: number; t: string; ancla?: string }[] = [];
+let puntos: { x: number; y: number; t: string }[] = [];
+let tabla: { cab: string[]; filas: string[][] } = { cab: [], filas: [] };
+let paneles: { x0: number; ancho: number; titulo: string; rango: string; barras: string }[] = [];
+const T_ = T as any;
+
+if (grafica === "proporcion") {
+  px = (n) => lg(n, 1, 100000, X0, X1);
+  py = (p) => lin(p, 0, 100, Y1, Y0);
+  ticksX = decadas.map((v) => ({ v, t: etiquetaDecada(v) }));
+  ticksY = [0, 25, 50, 75, 100].map((v) => ({ v, t: `${v}` }));
+  const ns = corridas[0].proporcion.map((p) => p[0]);
+  const alto = ns.map((n) => [px(n), py(Math.min(100, 50 + 50 / Math.sqrt(n)))] as [number, number]);
+  const bajo = ns.map((n) => [px(n), py(Math.max(0, 50 - 50 / Math.sqrt(n)))] as [number, number]).reverse();
+  bandas = [{ d: ruta(alto) + ruta(bajo).replace("M", "L") + "Z", clase: "banda" }];
+  lineas = corridas.map((r, i) => ({ d: ruta(r.proporcion.map(([n, p]) => [px(n), py(p)] as [number, number])), clase: "corrida", titulo: `${T.corrida} ${i + 1}` }));
+  lineas.push({ d: ruta([[X0, py(50)], [X1, py(50)]]), clase: "esperado" });
+  etiquetas = [
+    { x: X1 - 4, y: py(50) - 6, t: T_.proporcion.esperado, ancla: "end" },
+    { x: px(40), y: py(9), t: T_.proporcion.banda },
+  ];
+  const dec = [10, 100, 1000, 10000, 100000];
+  tabla = {
+    cab: [T.lanzamientos, ...corridas.map((_, i) => `${T.corrida} ${i + 1}`)],
+    filas: dec.map((n) => [nf(n), ...corridas.map((r) => `${nf(r.proporcion.find((p) => p[0] === n)![1], 2)} %`)]),
+  };
+}
+
+if (grafica === "diferencia") {
+  const MAXY = 350;
+  px = (n) => lin(n, 0, 100000, X0, X1);
+  py = (d) => lin(d, -MAXY, MAXY, Y1, Y0);
+  ticksX = [0, 25000, 50000, 75000, 100000].map((v) => ({ v, t: nf(v) }));
+  ticksY = [-300, -200, -100, 0, 100, 200, 300].map((v) => ({ v, t: `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)}` }));
+  const ns = corridas[0].diferencia.map((p) => p[0]);
+  const banda = (k: number, clase: string) => ({
+    d: ruta(ns.map((n) => [px(n), py(Math.min(MAXY, (k * Math.sqrt(n)) / 2))] as [number, number])) +
+      ruta(ns.map((n) => [px(n), py(Math.max(-MAXY, (-k * Math.sqrt(n)) / 2))] as [number, number]).reverse()).replace("M", "L") + "Z",
+    clase,
+  });
+  bandas = [banda(2, "banda banda-2"), banda(1, "banda")];
+  lineas = corridas.map((r, i) => ({ d: ruta(r.diferencia.map(([n, d]) => [px(n), py(d)] as [number, number])), clase: "corrida", titulo: `${T.corrida} ${i + 1}` }));
+  lineas.push({ d: ruta([[X0, py(0)], [X1, py(0)]]), clase: "esperado" });
+  etiquetas = [
+    { x: px(2000), y: py(300), t: T_.diferencia.b2 },
+    { x: px(2000), y: py(250), t: T_.diferencia.b1 },
+  ];
+  const dec = [1000, 10000, 25000, 50000, 100000];
+  tabla = {
+    cab: [T.lanzamientos, ...corridas.map((_, i) => `${T.corrida} ${i + 1}`), "√n / 2"],
+    filas: dec.map((n) => [
+      nf(n),
+      ...corridas.map((r) => nf(r.diferencia.find((p) => p[0] === n)![1], n === 1000 ? 1 : 0)),
+      nf(Math.sqrt(n) / 2, 0),
+    ]),
+  };
+}
+
+if (grafica === "dispersion") {
+  px = (n) => lg(n, 10, 1000000, X0, X1);
+  py = (p) => lg(p, 1, 1000, Y1, Y0);
+  ticksX = [10, 100, 1000, 10000, 100000, 1000000].map((v) => ({ v, t: nf(v) }));
+  ticksY = [1, 10, 100, 1000].map((v) => ({ v, t: nf(v) }));
+  const teo = (n: number) => 1600 / Math.sqrt(n);
+  lineas = [{ d: ruta([[px(10), py(teo(10))], [px(1000000), py(teo(1000000))]]), clase: "teoria" }];
+  puntos = carpetas.map((c) => ({ x: px(c.n), y: py(c.sdRelativa), t: `${nf(c.n)}: ${nf(c.sdRelativa, 1)} %` }));
+  etiquetas = [
+    { x: px(2000), y: py(teo(2000)) - 30, t: T_.dispersion.teoria },
+    { x: px(1000000) - 14, y: py(teo(1000000)) - 20, t: T_.dispersion.medido, ancla: "end" },
+  ];
+  tabla = {
+    cab: T_.dispersion.cols,
+    filas: carpetas.map((c) => [nf(c.n), `${nf(c.sdRelativa, 1)} %`, `${nf(teo(c.n), 1)} %`]),
+  };
+}
+
+if (grafica === "carpetas") {
+  const sizes = [1000, 100000, 1000000];
+  const sel = sizes.map((n) => carpetas.find((c) => c.n === n)!);
+  const gap = 22;
+  const ancho = (X1 - X0 - gap * 2) / 3;
+  const MAXY = 300;
+  py = (p) => lin(p, 0, MAXY, Y1, Y0);
+  ticksY = [0, 100, 200, 300].map((v) => ({ v, t: `${v}` }));
+  paneles = sel.map((c, k) => {
+    const x0 = X0 + k * (ancho + gap);
+    const media = c.n / 256;
+    const barras = (c.conteos as readonly number[])
+      .map((v, i) => {
+        const x = x0 + ((i + 0.5) / 256) * ancho;
+        return `M${f(x)} ${f(Y1)}V${f(py((v / media) * 100))}`;
+      })
+      .join("");
+    return { x0, ancho, titulo: `${nf(c.n)} ${T_.carpetas.objetos}`, rango: `${T_.carpetas.rango}: ${c.min} – ${c.max}`, barras };
+  });
+  tabla = {
+    cab: [T_.carpetas.objetos, T_.carpetas.promedio, T_.carpetas.rango, "%"],
+    filas: sel.map((c) => [nf(c.n), nf(c.media, 1), `${c.min} – ${c.max}`, `${nf(c.sdRelativa, 1)}`]),
+  };
+  tabla.cab[3] = idioma === "es" ? "desvío ÷ promedio" : "deviation ÷ average";
+  tabla.filas.forEach((fila) => (fila[3] += " %"));
+}
+
+const info = (T as any)[grafica];
+const ejeX = info.ejeX as string | undefined;
+const ejeY = info.ejeY as string;
+---
+
+<figure class="grafica" data-pagefind-ignore="all">
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={info.alt} xmlns="http://www.w3.org/2000/svg">
+    <!-- rejilla horizontal y marcas del eje Y -->
+    {ticksY.map((t) => (
+      <g>
+        <line class="rejilla" x1={X0} x2={X1} y1={f(py(t.v))} y2={f(py(t.v))} />
+        <text class="marca" x={X0 - 8} y={py(t.v) + 4} text-anchor="end">{t.t}</text>
+      </g>
+    ))}
+    {ticksX.map((t) => (
+      <g>
+        <line class="rejilla suave" x1={f(px(t.v))} x2={f(px(t.v))} y1={Y0} y2={Y1} />
+        <text class="marca" x={px(t.v)} y={Y1 + 18} text-anchor="middle">{t.t}</text>
+      </g>
+    ))}
+
+    {bandas.map((b) => <path class={b.clase} d={b.d} />)}
+
+    {paneles.map((p, k) => (
+      <g>
+        <line class="esperado" x1={p.x0} x2={p.x0 + p.ancho} y1={f(py(100))} y2={f(py(100))} />
+        <path class="barras" d={p.barras} stroke-width={f((p.ancho / 256) * 0.85)} />
+        <line class="eje" x1={p.x0} x2={p.x0 + p.ancho} y1={Y1} y2={Y1} />
+        <text class="titulo-panel" x={p.x0} y={Y1 + 18}>{p.titulo}</text>
+        <text class="marca rango" x={p.x0} y={Y1 + 34}>{p.rango}</text>
+        {k === 2 && <text class="etiqueta" x={p.x0 + p.ancho} y={py(100) - 6} text-anchor="end">{(T as any).carpetas.promedio}</text>}
+      </g>
+    ))}
+
+    {lineas.map((l) => (
+      <path class={l.clase} d={l.d}>{l.titulo && <title>{l.titulo}</title>}</path>
+    ))}
+    {puntos.map((p) => (
+      <circle class="punto" cx={f(p.x)} cy={f(p.y)} r="5"><title>{p.t}</title></circle>
+    ))}
+    {etiquetas.filter((e) => e.t).map((e) => (
+      <text class="etiqueta" x={e.x} y={e.y} text-anchor={e.ancla ?? "start"}>{e.t}</text>
+    ))}
+
+    {paneles.length === 0 && <line class="eje" x1={X0} x2={X1} y1={Y1} y2={Y1} />}
+    {ejeX && <text class="titulo-eje" x={(X0 + X1) / 2} y={H - 6} text-anchor="middle">{ejeX}</text>}
+    <text class="titulo-eje" transform={`translate(14 ${(Y0 + Y1) / 2}) rotate(-90)`} text-anchor="middle">{ejeY}</text>
+  </svg>
+  <figcaption>{info.cap}</figcaption>
+  <details class="datos">
+    <summary>{T.verDatos}</summary>
+    <div class="tabla">
+      <table>
+        <thead><tr>{tabla.cab.map((c) => <th scope="col">{c}</th>)}</tr></thead>
+        <tbody>{tabla.filas.map((fila) => <tr>{fila.map((c, i) => (i === 0 ? <th scope="row">{c}</th> : <td>{c}</td>))}</tr>)}</tbody>
+      </table>
+    </div>
+  </details>
+</figure>
+
+<style>
+  .grafica {
+    margin: 2.2em 0;
+    padding: 14px 14px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    container-type: inline-size;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .rejilla {
+    stroke: var(--line);
+    stroke-width: 1;
+  }
+  .rejilla.suave {
+    stroke-opacity: 0.5;
+  }
+  .eje {
+    stroke: var(--line-strong);
+    stroke-width: 1;
+  }
+  .marca,
+  .titulo-eje,
+  .titulo-panel,
+  .etiqueta {
+    fill: var(--muted);
+    font: 500 11px/1 var(--font-mono);
+  }
+  .titulo-panel,
+  .etiqueta {
+    fill: var(--text);
+  }
+  .titulo-panel {
+    font-weight: 700;
+  }
+  .banda {
+    fill: var(--brand);
+    fill-opacity: 0.28;
+    stroke: var(--accent);
+    stroke-opacity: 0.45;
+    stroke-width: 1;
+  }
+  .banda-2 {
+    fill-opacity: 0.12;
+    stroke-opacity: 0.25;
+  }
+  .corrida {
+    fill: none;
+    stroke: var(--text);
+    stroke-opacity: 0.75;
+    stroke-width: 1.4;
+    stroke-linejoin: round;
+  }
+  .esperado {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+  }
+  .teoria {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+  .punto {
+    fill: var(--strong);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+  .barras {
+    fill: none;
+    stroke: var(--text);
+    stroke-opacity: 0.85;
+  }
+  /* En pantallas angostas el SVG se reduce y el texto quedaría ilegible: se agranda dentro del dibujo. */
+  @container (max-width: 520px) {
+    .marca,
+    .titulo-eje,
+    .etiqueta {
+      font-size: 15.5px;
+    }
+    .titulo-panel {
+      font-size: 14px;
+    }
+    .rango {
+      display: none;
+    }
+  }
+  figcaption {
+    margin: 10px 4px 0;
+    color: var(--muted);
+    font-size: 0.86em;
+    line-height: 1.5;
+  }
+  .datos {
+    margin: 8px 4px 0;
+    font-size: 0.86em;
+  }
+  .datos summary {
+    cursor: pointer;
+    color: var(--accent);
+  }
+  .tabla {
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font: 500 12px/1.4 var(--font-mono);
+  }
+  th,
+  td {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--line);
+    text-align: right;
+    white-space: nowrap;
+  }
+  th[scope="col"],
+  th[scope="row"] {
+    color: var(--muted);
+    font-weight: 600;
+  }
+  thead th {
+    text-align: right;
+  }
+</style>

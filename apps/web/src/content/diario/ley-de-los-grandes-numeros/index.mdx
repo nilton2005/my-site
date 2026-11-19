@@ -2,16 +2,18 @@
 titulo: "La ley de los grandes números, con gráficas"
 descripcion: "Por qué 10 000 lanzamientos de una moneda se acercan al 50 % y 10 no, y qué tiene que ver con las 256 carpetas de Git. Con gráficas y la matemática detrás."
 fecha: 2026-11-14
-avance: true
 idioma: es
 traduccion: law-of-large-numbers
 rama: donde-guarda-git
 etiquetas: ["probabilidad", "ley de los grandes números", "git internals", "estadística"]
 ---
 
-import VistaPrevia from "../../../components/VistaPrevia.astro";
+import Grafica from "../../../components/figuras/GraficasGrandesNumeros.astro";
+import Dato from "../../../components/Dato.astro";
+import Nota from "../../../components/Nota.astro";
+import { curiosos, historia, usos } from "./datos.ts";
 
-En el subartículo [¿Quién decide en qué carpeta va cada objeto?](/diario/como-reparte-git-sus-objetos/) quedó una frase con letra pequeña: «más parejo» significa más parejo *en proporción*, no en cantidad. Aquí vamos a mirar de dónde sale eso, con la matemática y con gráficas.
+En el subartículo [¿Quién decide en qué carpeta va cada objeto?](/diario/como-reparte-git-sus-objetos/) quedó una frase con letra pequeña: «más parejo» significa más parejo *en proporción*, no en cantidad. Aquí vamos a mirar de dónde sale eso, con la matemática y con gráficas. Los números son de ejecuciones reales, y al final tienes el código para repetirlas.
 
 ## La pregunta
 
@@ -26,11 +28,139 @@ En el experimento de las carpetas apareció algo que parece contradecirlo:
 
 La diferencia **creció**, de 131 a 296 objetos, pero en proporción **se achicó**, de 34 % a 8 %. Las dos cosas son ciertas a la vez, y la ley de los grandes números explica por qué.
 
-## Lo que vamos a ver
+## Cinco monedas, cien mil lanzamientos
 
-- El enunciado de la ley, sin letra pequeña.
-- Una simulación de monedas, con gráficas, para ver la proporción acercarse al 50 % mientras la diferencia absoluta se aleja.
-- El desvío típico, que para las carpetas de Git es de unos √(n/256).
-- Cómo se aplica todo esto a Git.
+Lancé una moneda virtual 100 000 veces, cinco veces seguidas (cinco «corridas»), y anoté la proporción de caras después de 1 lanzamiento, de 2, de 3… hasta 100 000. El eje horizontal usa escala logarítmica para que se vean por igual los primeros lanzamientos y los últimos.
 
-<VistaPrevia />
+<Grafica grafica="proporcion" idioma="es" />
+
+Tres cosas que se ven:
+
+- Al principio las líneas se desparraman entre 0 % y 100 %. Con un solo lanzamiento la proporción solo puede ser 0 % o 100 %.
+- Después se van cerrando, y la banda amarilla (un desvío típico, que explico enseguida) se angosta con ellas.
+- Al final las cinco terminan cerca del 50 %: entre 49,80 % y 50,01 %. Ninguna llegó a 50 *exacto*, y no tenía por qué.
+
+Y ningún lanzamiento «corrigió» a otro. Lo que pasa es que cada lanzamiento nuevo pesa menos: el lanzamiento 100 000 mueve la proporción 0,001 puntos como máximo; el lanzamiento 10 la mueve hasta 10.
+
+## La misma moneda, vista en caras
+
+Ahora, con las mismas cinco corridas, mira otra cosa: no el porcentaje, sino cuántas caras hay **de más o de menos** respecto a la mitad. Si en 1 000 lanzamientos salen 520 caras, la diferencia es +20.
+
+<Grafica grafica="diferencia" idioma="es" />
+
+Aquí pasa lo contrario: las líneas **se abren** en vez de cerrarse. La que terminó más lejos, la de la semilla 42, acabó con 202 caras menos de la mitad (49 798 de 100 000). En proporción es apenas un 0,2 % de diferencia, pero en caras absolutas es mucho más que lo que había en los primeros lanzamientos.
+
+Nada raro: las cinco se mueven dentro de una banda que se ensancha con la raíz cuadrada de los lanzamientos. En mis corridas, 1 003 de los 1 005 puntos que dibujé cayeron a menos de dos desvíos típicos de la mitad.
+
+Es la misma paradoja de la tabla de las carpetas, ahora en una moneda: **la diferencia absoluta crece y la proporción se achica.**
+
+## La matemática, paso a paso
+
+Cada lanzamiento es una variable que vale 1 (cara) o 0 (sello), con probabilidad 1/2 cada una. Llamemos `H` al número de caras en `n` lanzamientos.
+
+1. **Promedio.** Cada lanzamiento aporta 1/2 cara en promedio, así que `H` vale en promedio `n/2`.
+2. **Variación de un solo lanzamiento.** Un lanzamiento varía por sí solo: su varianza es `p × (1 − p)` = 1/4.
+3. **Los lanzamientos son independientes**, y cuando las variables son independientes **las varianzas se suman**. Con `n` lanzamientos, la varianza de `H` es `n/4`.
+4. **El desvío típico** es la raíz de la varianza: `√n / 2`. Es la banda de la segunda gráfica.
+5. **La proporción** es `H / n`. Al dividir entre `n`, su desvío típico queda `(√n / 2) / n` = `1 / (2√n)`, o `50 / √n` puntos porcentuales. Es la banda de la primera gráfica.
+
+Lo importante está en los pasos 4 y 5: el número de caras se desvía como `√n`, y la proporción, como `1/√n`. Con `n` creciendo, `√n` crece y `1/√n` se achica, y las dos cosas ocurren en la misma moneda.
+
+| Lanzamientos | Desvío típico en caras (√n / 2) | Desvío típico en proporción (50 / √n) |
+| --- | --- | --- |
+| 10 | 1,6 caras | 15,8 puntos |
+| 100 | 5 caras | 5 puntos |
+| 1 000 | 15,8 caras | 1,6 puntos |
+| 10 000 | 50 caras | 0,5 puntos |
+| 100 000 | 158 caras | 0,16 puntos |
+
+Con esto se entiende la pregunta del principio. 7 caras de 10 está a unos 1,3 desvíos típicos de la mitad, algo común: en una moneda justa salen **7 o más caras en el 17,2 % de las tandas de 10**. En cambio, un 70 % de caras en 10 000 lanzamientos estaría a unos 40 desvíos típicos, algo que no vas a ver nunca.
+
+### Qué dice la ley, con letra grande
+
+La **ley (débil) de los grandes números** dice que, para cualquier margen ε que elijas, por pequeño que sea, la probabilidad de que la proporción se aleje del valor real en más de ε tiende a cero cuando `n` crece:
+
+> P( | H/n − 1/2 | > ε ) → 0 cuando n → ∞
+
+Es una frase sobre la **proporción**. No dice que `H − n/2` tienda a cero (ya viste que no), y tampoco que el azar se compense. Dice que, a escala grande, el desorden de cada lanzamiento deja de importar *en proporción*.
+
+Esta ley tiene más de tres siglos de <Dato etiqueta="historia" titulo="Historia de la ley de los grandes números" items={historia} />, hubo gente que lanzó monedas miles de veces para comprobarla (<Dato etiqueta="experimentos famosos" titulo="Experimentos famosos" items={curiosos} />) y está en más lugares de los que parece: <Dato etiqueta="dónde más se usa" titulo="Dónde más se usa" items={usos} />. Son opcionales: pasa el cursor por la palabra (o tócala) y sigue leyendo cuando quieras.
+
+<Nota titulo="Ojo: la ley necesita condiciones">
+  Funciona cuando los intentos son <strong>independientes</strong> y el promedio existe. Hay casos en que falla: el promedio de muchas muestras de una distribución de Cauchy no se acerca a nada, porque es otra Cauchy, igual de dispersa que una sola muestra. En una moneda, o en un hash, esas condiciones se cumplen.
+</Nota>
+
+## Las 256 carpetas son 256 monedas
+
+Un objeto de Git cae en la carpeta `84` o en la `a3`, y entre las dos hay 254 opciones más. Para **una** carpeta concreta es una moneda sesgada: cae ahí con probabilidad 1/256 y en otra con probabilidad 255/256.
+
+Con `n` objetos, la cantidad que acaba en esa carpeta es como `H`, con otra probabilidad:
+
+- Promedio: `n / 256`.
+- Desvío típico: `√( n × (1/256) × (255/256) )`, que es casi `√(n / 256)`.
+- **Desvío relativo** (desvío ÷ promedio): `√(n/256) / (n/256)` = `16 / √n`.
+
+Es la misma fórmula de la moneda, con otro número. Y se puede ver en las 256 carpetas a la vez, con SHA-1 reales (los blobs `archivo 0`, `archivo 1`… del mismo guion de la tabla de arriba):
+
+<Grafica grafica="carpetas" idioma="es" />
+
+Con 1 000 objetos hay barras de casi el triple del promedio y carpetas vacías. Con 100 000, todas están en una franja (329 a 460). Con un millón, la franja es tan estrecha que las barras casi se pegan a la línea del promedio.
+
+La teoría dice que el desvío relativo es `16/√n`. Lo medí con seis tamaños y casi coincide:
+
+<Grafica grafica="dispersion" idioma="es" />
+
+Cada punto de esa gráfica es **una sola corrida** de 256 carpetas, así que tiene algo de ruido. Con 100 000 objetos mi corrida dio 5,3 % y la teoría dice 5,06 %; repetí el experimento 30 veces con otros nombres de archivo y el promedio fue 5,02 %.
+
+### Una predicción
+
+Con la fórmula puedo hacer algo que da más gusto que explicar lo que ya pasó: predecir. Con **10 millones** de objetos, el desvío típico sería `√(10 000 000 / 256)` ≈ 198 sobre un promedio de 39 062, es decir **0,51 %**. Y la diferencia entre la carpeta más llena y la más vacía, que en mis corridas fue de unos 5 a 6 desvíos típicos, andaría por los 1 100.
+
+Lo medí con 10 000 000 de SHA-1 (tardó casi un minuto). La carpeta menor tuvo 38 404 objetos y la mayor 39 566: una diferencia de **1 162**, y un desvío relativo de **0,50 %**. La predicción acertó.
+
+## Lo que esto cambia en Git
+
+- **Nadie reparte nada, y el reparto sale parejo** porque cada objeto es un intento independiente con casi la misma probabilidad de caer en cada carpeta. La ley de los grandes números hace el resto.
+- **Más parejo** significa más parejo en proporción. Con un millón de objetos una carpeta puede tener 296 más que otra, y aun así ninguna se aleja más de un 4 % del promedio.
+- **La estimación de `git gc --auto`** (contar una carpeta y multiplicar por 256) se apoya en lo mismo. Con pocos objetos sería muy ruidosa: en el repositorio de 2 000 objetos del subartículo anterior, la carpeta con menos tenía 2 y la que más, 16, sobre un promedio de 7,8. Con miles y miles de objetos, cada carpeta queda cerca del promedio.
+- **Es probabilidad, no garantía**, y eso nos lleva al siguiente subartículo: [Pensar en probabilidades, no en 0 o 1](/diario/pensar-en-probabilidades/).
+
+## Pruébalo tú
+
+Guarda esto como `monedas.mjs` y ejecútalo con `node monedas.mjs`. Usa `Math.random`, así que tu salida será distinta de la mía, pero la forma no:
+
+```js title="monedas.mjs"
+const lanzar = (n) => {
+  let caras = 0;
+  for (let i = 0; i < n; i++) if (Math.random() < 0.5) caras++;
+  return caras;
+};
+
+for (const n of [10, 100, 1_000, 10_000, 100_000, 1_000_000]) {
+  const caras = lanzar(n);
+  console.log(`${n} lanzamientos: ${((caras / n) * 100).toFixed(2)} % caras, diferencia con la mitad: ${caras - n / 2}`);
+}
+```
+
+En una de mis ejecuciones salió:
+
+```text
+10 lanzamientos: 60.00 % caras, diferencia con la mitad: 1
+100 lanzamientos: 50.00 % caras, diferencia con la mitad: 0
+1000 lanzamientos: 49.10 % caras, diferencia con la mitad: -9
+10000 lanzamientos: 49.85 % caras, diferencia con la mitad: -15
+100000 lanzamientos: 50.24 % caras, diferencia con la mitad: 243
+1000000 lanzamientos: 50.02 % caras, diferencia con la mitad: 230
+```
+
+Ejecútalo varias veces: el porcentaje se va pegando a 50, y la diferencia con la mitad se hace más grande. Las dos cosas, al mismo tiempo.
+
+Los datos de las gráficas de este artículo (con semilla fija, para que salgan siempre iguales) los genera `scripts/datos-grandes-numeros.mjs`, en el repositorio de este sitio.
+
+## En resumen
+
+- La proporción se acerca a la probabilidad real y la diferencia absoluta se aleja: una se achica como `1/√n` y la otra crece como `√n`.
+- El azar **no se compensa**: se diluye. Cada lanzamiento nuevo pesa menos.
+- El desvío típico de `n` lanzamientos de una moneda justa es `√n / 2`; el de la proporción, `50 / √n` puntos.
+- Una carpeta de Git es una moneda sesgada (1/256), y por eso su desvío relativo es `16 / √n`. Medido: 5,3 % con 100 000 objetos (5,02 % de promedio en 30 repeticiones) y 0,50 % con 10 millones.
+- La ley necesita intentos independientes y muchos de ellos: con pocos, el azar se nota.

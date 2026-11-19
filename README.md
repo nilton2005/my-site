@@ -52,6 +52,10 @@ Más adelante: `apps/app` (Next.js, paneles) y `apps/api` (NestJS).
 
 3. Para una figura, importa su componente en el MDX (ver `donde-guarda-git/index.mdx`).
 4. Si no pones `imagen`, se genera una automáticamente en `/og/<slug>.png` (título, serie y minutos).
+5. **Portada (escena).** Cada artículo puede tener una escena de naturaleza hecha de partículas que representa el tema sin
+   decirlo (la colmena, el diente de león, la lluvia, el hormiguero). Se escribe en `apps/web/src/lib/portadas.mjs` y se
+   registra en `ESCENAS` con la carpeta del artículo en los dos idiomas. Sale como banner bajo el título y como fondo de
+   `/og/<slug>.png`. Es SVG estático con semilla fija: sin JavaScript y siempre igual.
 
 ### Bloques de código
 
@@ -119,8 +123,14 @@ sigue a la marca: ni el HTML ni el JavaScript lo contienen. Lo difuminado son ba
 - Para publicar el artículo completo: quita `avance: true`. La marca `<VistaPrevia />` deja de hacer nada.
 - **Ojo con el repositorio:** el corte actúa sobre el sitio, no sobre Git. Si el repositorio es público, el texto completo que
   esté en el `.mdx` se puede leer en GitHub. Si el resto no debe verse, no lo subas: escríbelo en un archivo ignorado por git
-  y pégalo al publicar. Un avance que solo tiene el comienzo (como los subartículos de la ley de los grandes números y de
-  pensar en probabilidades) no tiene nada que filtrar.
+  y pégalo al publicar. Un avance que solo tiene el comienzo no tiene nada que filtrar.
+
+## Gráficas de un artículo
+
+`src/components/figuras/GraficasGrandesNumeros.astro` dibuja las cuatro gráficas de «La ley de los grandes números» como SVG al
+compilar (sin JavaScript, con tema claro/oscuro y una tabla con los datos). Los datos están en `src/data/grandes-numeros.ts`, que
+**genera** `apps/web/scripts/datos-grandes-numeros.mjs` (monedas con semilla fija y SHA-1 reales): para cambiar un dato, se ejecuta
+`node scripts/datos-grandes-numeros.mjs` desde `apps/web` y no se edita el `.ts` a mano.
 
 ## Series: artículos, subartículos y el mapa
 
@@ -153,6 +163,8 @@ artículo existe, el mapa usa su título real.
   La búsqueda de texto usa **Pagefind**, que indexa el sitio al compilar: en `pnpm dev` solo se filtran
   comandos y títulos; con `pnpm build && pnpm preview` funciona completa.
 - **Índice flotante** en los artículos (desplegable en el celular) y **barra de progreso** de lectura.
+- **Hero con el mono**: arte de partículas interactivo (Canvas 2D, sin librerías) en `apps/web/src/scripts/mono.js`. Cuelga
+  de una rama, sigue el cursor y se balancea si lo empujas; se pausa fuera de pantalla y respeta «reducir movimiento».
 - **Inicio en bento**: artículo destacado, «Ahora», números reales del diario, quién soy y la serie.
 - **Tema claro/oscuro** persistente; las figuras cambian junto con la página.
 - **Transiciones entre páginas** con CSS (View Transitions), sin JavaScript.

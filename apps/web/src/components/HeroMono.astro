@@ -1,0 +1,46 @@
+---
+// El mono de la portada: arte de partículas interactivo (la lógica está en src/scripts/mono.js).
+// El lienzo es transparente y toma los colores del tema; sin JavaScript queda vacío y el hero sigue funcionando.
+import { idiomaDe, UI } from "../i18n";
+
+const t = UI[idiomaDe(Astro.currentLocale)].inicio;
+---
+
+<div class="mono">
+  <canvas data-mono role="img" aria-label={t.mono}></canvas>
+  <p class="pista" aria-hidden="true">{t.monoPista}</p>
+</div>
+
+<script>
+  import "../scripts/mono.js";
+</script>
+
+<style>
+  .mono {
+    position: relative;
+    height: clamp(420px, 62vw, 560px);
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: pan-y;
+    cursor: crosshair;
+  }
+  .pista {
+    position: absolute;
+    right: 4px;
+    bottom: 0;
+    margin: 0;
+    font: 11px var(--font-mono);
+    color: var(--muted);
+    opacity: 0.7;
+  }
+  @media (hover: none) {
+    .pista {
+      display: none;
+    }
+  }
+</style>

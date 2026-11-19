@@ -106,6 +106,11 @@ const es = {
     entrada:
       "Desarrollador backend con <strong>Node.js</strong> y <strong>TypeScript</strong>. Me gusta entender cómo funcionan las herramientas por dentro, y en este diario lo explico con figuras que puedes tocar.",
     leer: "Leer el diario",
+    breve: "Backend · Node.js · TypeScript",
+    verMas: "ver más",
+    verMenos: "ver menos",
+    mono: "Un mono abstracto hecho de partículas, colgado de una rama: sigue el cursor y se balancea si lo empujas.",
+    monoPista: "mueve el cursor · haz clic",
     resumen: "Resumen",
     ultimo: "Último del diario",
     ahora: "Ahora",
@@ -251,6 +256,11 @@ const en: typeof es = {
     entrada:
       "Backend developer working with <strong>Node.js</strong> and <strong>TypeScript</strong>. I like to understand how tools work on the inside, and in this journal I explain it with figures you can play with.",
     leer: "Read the journal",
+    breve: "Backend · Node.js · TypeScript",
+    verMas: "read more",
+    verMenos: "read less",
+    mono: "An abstract monkey made of particles, hanging from a branch: it follows the cursor and swings if you push it.",
+    monoPista: "move the cursor · click",
     resumen: "Overview",
     ultimo: "Latest from the journal",
     ahora: "Now",

@@ -1,7 +1,8 @@
 /*
  * Tokens de diseño compartidos. Identidad Mokya: amarillo banana (--brand) y tinta aceituna (--brand-ink),
  * sacados del logo. Los colores de la marca van en relleno; para texto sobre fondo claro se usa --accent,
- * una versión oscurecida del amarillo que cumple el contraste. Las figuras (packages/figuras) heredan
+ * una versión oscurecida del amarillo que cumple el contraste. --particula y --particula-2 pintan el arte de partículas
+ * (el mono de la portada y las escenas de cada artículo). Las figuras (packages/figuras) heredan
  * la misma paleta, así que una figura se ve como parte de la página y no como un recuadro pegado.
  * El tema lo pone <html data-theme="light|dark">; sin JavaScript se sigue al sistema.
  */
@@ -20,6 +21,8 @@
   --accent-soft: #f8ecbd;
   --brand: #f3ca47;
   --brand-ink: #2a2612;
+  --particula: #2a2612;
+  --particula-2: #a8925a;
   --code-bg: #f3efdf;
   --shadow: 0 1px 0 #ffffffb3 inset, 0 0 0 1px #0000000d, 0 8px 24px -12px #0000001f;
 }
@@ -38,6 +41,8 @@
   --accent-soft: #2b2410;
   --brand: #f3ca47;
   --brand-ink: #2a2612;
+  --particula: #f3ca47;
+  --particula-2: #8a8566;
   --code-bg: #16140b;
   --shadow: 0 1px 0 #ffffff08 inset, 0 0 0 1px #ffffff0d, 0 8px 24px -12px #000000;
 }
@@ -57,6 +62,8 @@
   --accent-soft: #2b2410;
   --brand: #f3ca47;
   --brand-ink: #2a2612;
+  --particula: #f3ca47;
+  --particula-2: #8a8566;
   --code-bg: #16140b;
     --shadow: 0 1px 0 #ffffff08 inset, 0 0 0 1px #ffffff0d, 0 8px 24px -12px #000000;
   }

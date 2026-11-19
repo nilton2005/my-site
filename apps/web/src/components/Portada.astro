@@ -1,0 +1,30 @@
+---
+// Portada del artículo: una escena de naturaleza hecha de partículas (src/lib/portadas.mjs) que representa el tema
+// sin decirlo. Es SVG estático generado al compilar: sin JavaScript, y cambia con el tema claro/oscuro.
+// Es decorativa (el título ya dice de qué trata), así que los lectores de pantalla la saltan.
+import { portadaBanner } from "../lib/portadas.mjs";
+
+interface Props {
+  /** Carpeta del artículo (su id). Sin escena registrada, no dibuja nada. */
+  id: string;
+}
+
+const svg = portadaBanner(Astro.props.id);
+---
+
+{svg && <div class="portada-articulo" aria-hidden="true" set:html={svg} />}
+
+<style>
+  .portada-articulo {
+    width: min(var(--wide), 100%);
+    margin: 4px auto 8px;
+    padding: 0 var(--gutter);
+  }
+  .portada-articulo :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* El borde izquierdo se funde con la página, como si la escena saliera de ella */
+    mask-image: linear-gradient(to right, transparent, #000 14%, #000 92%, transparent);
+  }
+</style>

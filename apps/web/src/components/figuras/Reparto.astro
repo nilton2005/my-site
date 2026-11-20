@@ -14,13 +14,22 @@ const html = { es, en }[idioma];
 
 <style>
   .figura {
-    width: min(var(--wide), 100vw - 2 * var(--gutter));
+    width: min(var(--wide), calc(100dvw - 2 * var(--gutter)));
     margin: 2.2em 0 2.4em 50%;
     transform: translateX(-50%);
+    content-visibility: auto;
+    contain-intrinsic-size: auto 540px;
   }
   @media (min-width: 1280px) {
     .figura {
       width: calc(var(--measure) + 96px);
+    }
+  }
+  @media (max-width: 760px) {
+    .figura {
+      width: 100%;
+      margin-left: 0;
+      transform: none;
     }
   }
 </style>

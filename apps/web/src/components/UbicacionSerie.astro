@@ -1,10 +1,10 @@
 ---
 // Dice, de un vistazo, DÓNDE estás dentro de una serie. Tiene dos modos:
-//  · "cabecera" (arriba del título): «Parte 2 de 8 · continúa de la parte 1» o, en un subartículo,
-//    «Subartículo de la parte 1: es una duda, vuelve al camino principal», con un mini mapa de la serie.
-//  · "pie" (al final): la tarjeta de «Siguiente parte» o, en un subartículo, «Vuelve a donde lo dejaste».
-//   <UbicacionSerie serie="git-por-dentro" idioma="es" actual="donde-guarda-git" modo="cabecera" />
-import { UI, type Idioma } from "../i18n";
+//  · "cabecera" (arriba del título): una sola franja limpia (sin duplicar breadcrumb ni apilar enlaces).
+//    En artículo principal: «Diario / Serie · Parte 01 de 08» + mini progreso en línea.
+//    En subartículo: «↩ Subartículo de Parte 01 · Volver a <artículo padre>» + enlace al mapa.
+//  · "pie" (al final): única tarjeta clara de «Siguiente parte» o «Vuelve a donde lo dejaste».
+import { RUTAS, UI, type Idioma } from "../i18n";
 import { ubicar } from "../lib/serie";
 import { urlSerie } from "../series";
 
@@ -17,71 +17,59 @@ interface Props {
 
 const { serie, idioma, actual, modo } = Astro.props;
 const t = UI[idioma].serie;
+const rutas = RUTAS[idioma];
 const u = await ubicar(serie, idioma, actual);
 const mapa = urlSerie(serie, idioma);
 const num = (n: number) => String(n).padStart(2, "0");
 
-// Mini mapa: una fila de nodos (las partes) y, si se lee un subartículo, una rama que cuelga de su parte.
-const PASO = 20;
-const nodos = u ? u.partes.map((p, i) => ({ x: 12 + i * PASO, p, actual: p.id === actual, padre: p === u.parte && !!u.sub })) : [];
-const ancho = u ? 24 + (u.partes.length - 1) * PASO : 0;
-const alto = u?.sub ? 38 : 24;
-const padreX = nodos.find((n) => n.padre)?.x ?? 0;
+// Mini progreso: una sola fila compacta de puntos para la cabecera.
+const PASO = 16;
+const nodos = u ? u.partes.map((p, i) => ({ x: 9 + i * PASO, p, actual: p.id === actual })) : [];
+const ancho = u ? 18 + (u.partes.length - 1) * PASO : 0;
+const alto = 18;
 const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefined;
 ---
 
 {
   u && modo === "cabecera" && (
-    <nav class:list={["ubic", { sub: !!u.sub }]} aria-label={t.posicion} data-pagefind-ignore>
-      <a class="glifo" href={mapa} aria-label={t.verMapa} title={t.verMapa}>
-        <svg width={ancho} height={alto} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden="true">
-          {nodos.slice(1).map((n, i) => (
-            <line x1={nodos[i]!.x} y1="11" x2={n.x} y2="11" class:list={["tramo", { hecho: n.p.estado === "publicado" }]} />
-          ))}
-          {u.sub && (
-            <>
-              <path d={`M${padreX} 11 C${padreX} 26 ${padreX + 14} 20 ${padreX + 14} 31`} class="rama" />
-              <circle cx={padreX + 14} cy="31" r="5" class="nodo aqui sub" />
-            </>
+    <nav class:list={["ubic-linea", { sub: !!u.sub }]} aria-label={t.posicion} data-pagefind-ignore>
+      {u.sub ? (
+        <div class="sub-fila">
+          <span class="sub-etiqueta">
+            {t.subarticulo} {t.subDe} {num(u.parte.orden)}
+          </span>
+          {volver && (
+            <a class="volver" href={volver}>
+              ↩ {t.volverCorta} «{u.parte.titulo}»
+            </a>
           )}
-          {nodos.map((n) => (
-            <circle cx={n.x} cy="11" r={n.actual ? 6.5 : 4.5} class:list={["nodo", n.p.estado, { aqui: n.actual }]} />
-          ))}
-        </svg>
-      </a>
-      <div class="texto">
-        {u.sub ? (
-          <>
-            <p class="rotulo">{t.subarticulo} {t.subDe} {num(u.parte.orden)} · {u.nombre}</p>
-            <p class="linea">{t.subIntro}</p>
-            <p class="enlaces">
-              {volver && <a class="volver" href={volver}>↩ {t.volverAlArticulo}: {u.parte.titulo}</a>}
-              <a href={mapa}>{t.verMapa}</a>
-            </p>
-          </>
-        ) : (
-          <>
-            <p class="rotulo">{u.nombre} · {t.parte} {num(u.parte.orden)} {t.de} {num(u.total)}</p>
-            <p class="linea">
-              {u.anterior?.url ? (
-                <>
-                  <strong>{t.continuaDe} {num(u.anterior.orden)}:</strong> <a href={u.anterior.url}>{u.anterior.titulo}</a>
-                </>
-              ) : (
-                <strong>{t.esLaPrimera}</strong>
-              )}
-            </p>
-            <p class="enlaces">
-              {u.siguiente && (
-                <span class="sigue">
-                  {t.sigue}: {u.siguiente.url ? <><a href={u.siguiente.url}>{u.siguiente.titulo}</a>{u.siguiente.estado === "avance" && <span class="pronto"> ({t.avance})</span>}</> : <span class="pronto">{u.siguiente.titulo} ({t.proximamente})</span>}
-                </span>
-              )}
-              <a href={mapa}>{t.verMapa}</a>
-            </p>
-          </>
-        )}
-      </div>
+          <a class="mapa-link" href={mapa}>
+            {t.verMapa}
+          </a>
+        </div>
+      ) : (
+        <div class="parte-fila">
+          <p class="ruta">
+            <a href={rutas.diario}>{UI[idioma].nav.diario}</a>
+            <span aria-hidden="true">/</span>
+            <a href={mapa}>{u.nombre}</a>
+            <span aria-hidden="true">·</span>
+            <span class="paso">
+              {t.parte} {num(u.parte.orden)} {t.de} {num(u.total)}
+            </span>
+          </p>
+          <a class="glifo" href={mapa} aria-label={t.verMapa} title={t.verMapa}>
+            <svg width={ancho} height={alto} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden="true">
+              {nodos.slice(1).map((n, i) => (
+                <line x1={nodos[i]!.x} y1="9" x2={n.x} y2="9" class:list={["tramo", { hecho: n.p.estado === "publicado" }]} />
+              ))}
+              {nodos.map((n) => (
+                <circle cx={n.x} cy="9" r={n.actual ? 5 : 3.4} class:list={["nodo", n.p.estado, { aqui: n.actual }]} />
+              ))}
+            </svg>
+          </a>
+        </div>
+      )}
     </nav>
   )
 }
@@ -93,7 +81,9 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
         <>
           <p class="rotulo">{t.terminasteSub}</p>
           {volver ? (
-            <a class="gran" href={volver}>↩ {t.parte} {num(u.parte.orden)} · {u.parte.titulo}</a>
+            <a class="gran" href={volver}>
+              ↩ {t.parte} {num(u.parte.orden)} · {u.parte.titulo}
+            </a>
           ) : (
             <p class="gran">{u.parte.titulo}</p>
           )}
@@ -101,9 +91,19 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
       ) : (
         u.siguiente && (
           <>
-            <p class="rotulo">{t.siguienteParte} · {t.parte} {num(u.siguiente.orden)}</p>
-            {u.siguiente.url ? <a class="gran" href={u.siguiente.url}>{u.siguiente.titulo} →</a> : <p class="gran pronto">{u.siguiente.titulo}</p>}
-            {(!u.siguiente.url || u.siguiente.estado === "avance") && <span class="etiqueta">{u.siguiente.url ? t.avance : t.proximamente}</span>}
+            <p class="rotulo">
+              {t.siguienteParte} · {t.parte} {num(u.siguiente.orden)}
+            </p>
+            {u.siguiente.url ? (
+              <a class="gran" href={u.siguiente.url}>
+                {u.siguiente.titulo} →
+              </a>
+            ) : (
+              <p class="gran pronto">{u.siguiente.titulo}</p>
+            )}
+            {(!u.siguiente.url || u.siguiente.estado === "avance") && (
+              <span class="etiqueta">{u.siguiente.url ? t.avance : t.proximamente}</span>
+            )}
             <p class="hilo">{u.siguiente.hilo}</p>
           </>
         )
@@ -113,20 +113,69 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
 }
 
 <style>
-  /* ── cabecera ── */
-  .ubic {
+  /* ── cabecera compacta en una sola franja ── */
+  .ubic-linea {
+    margin-block-end: 16px;
+  }
+  .parte-fila {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 16px;
-    margin: 0 0 26px;
-    padding: 12px 16px;
+    justify-content: space-between;
+    gap: 8px 16px;
+  }
+  .ruta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .ruta a {
+    color: inherit;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .ruta a:hover {
+    color: var(--accent);
+  }
+  .paso {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .sub-fila {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 8px 14px;
     border: 1px solid var(--line);
-    border-left: 4px solid var(--accent);
+    border-inline-start: 3px dashed var(--accent);
     border-radius: var(--radius-sm);
     background: var(--surface);
+    font-size: 14px;
   }
-  .ubic.sub {
-    border-left-style: dashed;
+  .sub-etiqueta {
+    color: var(--accent);
+    font: 600 11.5px / 1.4 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .volver {
+    font-weight: 600;
+    color: var(--strong);
+  }
+  .mapa-link {
+    margin-inline-start: auto;
+    font: 500 12.5px / 1.4 var(--font-mono);
+    color: var(--muted);
+  }
+  .mapa-link:hover {
+    color: var(--accent);
   }
   .glifo {
     flex: none;
@@ -138,21 +187,15 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
   }
   .tramo {
     stroke: var(--line-strong);
-    stroke-width: 2;
-    stroke-dasharray: 3 3;
+    stroke-width: 1.8;
+    stroke-dasharray: 2.5 2.5;
   }
   .tramo.hecho {
     stroke: var(--accent);
     stroke-dasharray: none;
   }
-  .rama {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 2;
-    stroke-linecap: round;
-  }
   .nodo {
-    stroke-width: 2;
+    stroke-width: 1.8;
     stroke: var(--accent);
     fill: var(--accent);
   }
@@ -160,65 +203,20 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
     stroke: var(--line-strong);
     fill: var(--page);
   }
-  .nodo.borrador {
-    stroke-dasharray: 2 2;
+  .nodo.borrador,
+  .nodo.avance {
+    stroke-dasharray: 2 1.5;
     fill: var(--page);
   }
   .nodo.aqui {
-    stroke: var(--accent);
-    fill: var(--accent);
-    paint-order: stroke;
-    filter: drop-shadow(0 0 0 var(--accent));
-  }
-  .nodo.aqui:not(.sub) {
-    stroke-width: 3;
+    stroke-width: 2.6;
     fill: var(--page);
-  }
-  .nodo.sub {
-    fill: var(--page);
-  }
-  .texto {
-    min-width: 0;
-  }
-  .texto p {
-    margin: 0;
-  }
-  .rotulo {
-    color: var(--accent);
-    font: 600 11.5px/1.5 var(--font-mono);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .linea {
-    margin-top: 2px;
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.5;
-  }
-  .linea strong {
-    color: var(--strong);
-  }
-  .enlaces {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 18px;
-    margin-top: 4px;
-    font-size: 14px;
-  }
-  .volver {
-    font-weight: 600;
-  }
-  .sigue {
-    color: var(--muted);
-  }
-  .pronto {
-    color: var(--muted);
   }
 
-  /* ── pie ── */
+  /* ── pie: único siguiente paso claro ── */
   .pie {
-    margin-top: 40px;
-    padding: 18px 22px 18px;
+    margin-block-start: 44px;
+    padding: 20px 24px;
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
     background: var(--surface);
@@ -226,6 +224,7 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
   }
   .pie .rotulo {
     margin: 0 0 6px;
+    color: var(--accent);
   }
   .gran {
     display: inline-block;
@@ -242,12 +241,12 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
     font-weight: 600;
   }
   .etiqueta {
-    margin-left: 10px;
+    margin-inline-start: 10px;
     padding: 0 8px;
     border: 1px solid var(--line);
     border-radius: 999px;
     color: var(--muted);
-    font: 500 11.5px/1.7 var(--font-mono);
+    font: 500 11.5px / 1.7 var(--font-mono);
     vertical-align: 2px;
   }
   .hilo {
@@ -257,11 +256,9 @@ const volver = u ? (u.parte.url ? `${u.parte.url}#pausa` : undefined) : undefine
     line-height: 1.55;
   }
 
-  @media (max-width: 520px) {
-    .ubic {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
+  @media (max-width: 560px) {
+    .mapa-link {
+      margin-inline-start: 0;
     }
   }
 </style>

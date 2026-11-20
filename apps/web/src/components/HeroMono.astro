@@ -7,8 +7,25 @@ const t = UI[idiomaDe(Astro.currentLocale)].inicio;
 ---
 
 <div class="mono">
-  <canvas data-mono role="img" aria-label={t.mono}></canvas>
-  <p class="pista" aria-hidden="true">{t.monoPista}</p>
+  <div class="escenario">
+    <canvas data-mono role="img" aria-label={t.mono}></canvas>
+  </div>
+  <div class="barra-mono">
+    <p class="pista" aria-hidden="true">{t.monoPista}</p>
+    <button
+      class="control-mono"
+      type="button"
+      data-mono-pausa
+      data-pausar={t.monoPausar}
+      data-pausar-aria={t.monoPausarAria}
+      data-reanudar={t.monoReanudar}
+      data-reanudar-aria={t.monoReanudarAria}
+      aria-label={t.monoPausarAria}
+    >
+      <span class="indicador" aria-hidden="true"></span>
+      <span data-mono-etiqueta>{t.monoPausar}</span>
+    </button>
+  </div>
 </div>
 
 <script>
@@ -18,29 +35,134 @@ const t = UI[idiomaDe(Astro.currentLocale)].inicio;
 <style>
   .mono {
     position: relative;
-    height: clamp(420px, 62vw, 560px);
+    block-size: clamp(350px, 47vw, 476px);
+    inline-size: 100%;
+    isolation: isolate;
+  }
+  .mono::before {
+    content: "";
+    position: absolute;
+    inset: 4% 2% 8%;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--brand) 16%, transparent) 0%,
+      color-mix(in srgb, var(--brand) 5%, transparent) 52%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
+  :global(:root[data-theme="dark"]) .mono::before {
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--brand) 11%, transparent) 0%,
+      color-mix(in srgb, var(--brand) 3%, transparent) 54%,
+      transparent 100%
+    );
+  }
+  .escenario {
+    position: absolute;
+    inset: 0;
+    /* Los bordes se funden con la página para que la rama y las partículas no se corten en seco */
+    mask-image:
+      linear-gradient(to right, transparent, #000 8%, #000 92%, transparent),
+      linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent);
+    mask-composite: intersect;
+    -webkit-mask-image:
+      linear-gradient(to right, transparent, #000 8%, #000 92%, transparent),
+      linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent);
+    -webkit-mask-composite: source-in;
   }
   canvas {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
+    inline-size: 100%;
+    block-size: 100%;
     display: block;
     touch-action: pan-y;
     cursor: crosshair;
   }
-  .pista {
+  .barra-mono {
     position: absolute;
-    right: 4px;
-    bottom: 0;
+    inset-inline-end: 2px;
+    inset-block-end: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 2;
+  }
+  .pista {
     margin: 0;
-    font: 11px var(--font-mono);
+    font: 11px/1 var(--font-mono);
+    letter-spacing: 0.02em;
     color: var(--muted);
-    opacity: 0.7;
+    opacity: 0.78;
+  }
+  .control-mono {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-block-size: 28px;
+    padding-inline: 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    color: var(--muted);
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background-color 0.2s var(--ease), scale 0.15s var(--ease);
+  }
+  .control-mono:hover {
+    color: var(--strong);
+    border-color: var(--line-strong);
+    background: var(--surface);
+  }
+  .control-mono:active {
+    scale: 0.97;
+  }
+  .indicador {
+    inline-size: 8px;
+    block-size: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .indicador::before,
+  .indicador::after {
+    content: "";
+    inline-size: 2.5px;
+    block-size: 8px;
+    border-radius: 1px;
+    background: currentColor;
+  }
+  .control-mono[data-pausado] .indicador {
+    justify-content: center;
+  }
+  .control-mono[data-pausado] .indicador::before {
+    inline-size: 0;
+    block-size: 0;
+    border-radius: 0;
+    background: none;
+    border-block: 4px solid transparent;
+    border-inline-start: 7px solid currentColor;
+  }
+  .control-mono[data-pausado] .indicador::after {
+    display: none;
   }
   @media (hover: none) {
     .pista {
       display: none;
+    }
+  }
+  @media (max-width: 760px) {
+    .mono {
+      block-size: clamp(300px, 76vw, 390px);
+    }
+    .barra-mono {
+      inset-inline-end: 4px;
+      inset-block-end: 4px;
     }
   }
 </style>

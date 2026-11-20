@@ -90,7 +90,7 @@ $ ls .git/objects/84/
 72c73b5ad6a5727750f015fbff152a72ecea74
 ```
 
-Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`: en lugar de apilar todos los objetos en una sola carpeta, Git los reparte entre 256. Con 100 000 objetos sueltos, serían unos 390 por carpeta. En la figura es el cajón de la fila 8, columna 4. ¿De verdad importa repartir? En la rama que sigue a la pausa lo medimos.
+Los dos primeros caracteres del hash son la carpeta y los 38 restantes, el nombre del archivo. Hay 256 carpetas posibles, de `00` a `ff`: en lugar de apilar todos los objetos en una sola carpeta, Git los reparte entre 256. Con 100 000 objetos sueltos, serían unos 390 por carpeta. En la figura es el cajón de la fila 8, columna 4. ¿De verdad importa repartir? En el subartículo que sigue a la pausa lo medimos.
 
 <Pausa
   pregunta="Hay 256 carpetas. ¿Quién decide en cuál va cada objeto? ¿Lleva Git la cuenta de cuántos archivos tiene cada una para repartirlos parejo?"

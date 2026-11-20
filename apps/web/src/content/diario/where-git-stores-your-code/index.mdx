@@ -91,7 +91,7 @@ $ ls .git/objects/84/
 72c73b5ad6a5727750f015fbff152a72ecea74
 ```
 
-The first two characters of the hash are the folder and the remaining 38 are the file name. There are 256 possible folders, from `00` to `ff`: instead of piling every object into a single folder, Git spreads them over 256. With 100,000 loose objects, that would be about 390 per folder. In the figure, it's the drawer in row 8, column 4. Does spreading really matter? In the branch that follows the pause, we measure it.
+The first two characters of the hash are the folder and the remaining 38 are the file name. There are 256 possible folders, from `00` to `ff`: instead of piling every object into a single folder, Git spreads them over 256. With 100,000 loose objects, that would be about 390 per folder. In the figure, it's the drawer in row 8, column 4. Does spreading really matter? In the sub-article that follows the pause, we measure it.
 
 <Pausa
   pregunta="There are 256 folders. Who decides which one each object goes in? Does Git keep a count of how many files each folder has, to spread them evenly?"

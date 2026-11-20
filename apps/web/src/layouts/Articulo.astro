@@ -9,6 +9,7 @@ import UbicacionSerie from "../components/UbicacionSerie.astro";
 import { AUTHOR, PERFILES, SITE } from "../config";
 import { RUTAS, UI } from "../i18n";
 import { fechaIso, fechaLarga, getArticulos, minutosDeLectura, traduccionDe, urlDe, type Articulo } from "../lib/diario";
+import { resolverSerie } from "../lib/serie";
 import { serieDe, urlSerie } from "../series";
 
 interface Props {
@@ -27,6 +28,8 @@ const padre = articulo.data.rama ? todos.find((a) => a.id === articulo.data.rama
 const ramas = todos.filter((a) => a.data.rama === articulo.id);
 // Una rama no declara serie: hereda la de su artículo padre, para mostrar dónde cae en la línea de tiempo.
 const claveSerie = serieDe((serie ?? padre?.data.serie)?.nombre)?.[0];
+const partesSerie = claveSerie ? await resolverSerie(claveSerie, idioma) : [];
+const disponiblesSerie = partesSerie.filter((p) => p.estado !== "proximamente").length;
 const minutos = minutosDeLectura(articulo.body);
 const url = new URL(urlDe(articulo), Astro.site).href;
 
@@ -67,12 +70,15 @@ const jsonLd = {
   <div class="progreso" aria-hidden="true"><span data-progreso></span></div>
   <article class="articulo" data-pagefind-body>
     <header class="encabezado">
-      <p class="rotulo">
-        <a href={rutas.diario}>{UI[idioma].nav.diario}</a>
-        {claveSerie && <span> / <a href={urlSerie(claveSerie, idioma)}>{(serie ?? padre?.data.serie)!.nombre}</a>{serie && ` · ${String(serie.orden).padStart(2, "0")}`}</span>}
-        {padre && <span> / {t.ramaDe} <a href={urlDe(padre)}>{padre.data.titulo}</a></span>}
-      </p>
-      {claveSerie && <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="cabecera" />}
+      {
+        claveSerie ? (
+          <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="cabecera" />
+        ) : (
+          <p class="rotulo">
+            <a href={rutas.diario}>{UI[idioma].nav.diario}</a>
+          </p>
+        )
+      }
       <h1>{titulo}</h1>
       <p class="entrada">{descripcion}</p>
       {articulo.data.avance && <p class="aviso-avance" role="note">{t.avance}</p>}
@@ -93,15 +99,18 @@ const jsonLd = {
     <div class="prosa">
       <slot />
     </div>
+    {claveSerie && <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="pie" />}
     {
       ramas.length > 0 && (
         <aside class="ramas">
           <p class="rotulo">{t.ramas}</p>
-          <p>{t.ramasIntro}</p>
           <ul>
             {ramas.map((r) => (
               <li>
-                <a href={urlDe(r)}>{r.data.titulo}{r.data.avance && <em class="avance-rama"> · {ts.avance}</em>}</a>
+                <a href={urlDe(r)}>
+                  {r.data.titulo}
+                  {r.data.avance && <em class="avance-rama"> · {ts.avance}</em>}
+                </a>
                 <span>{r.data.descripcion}</span>
               </li>
             ))}
@@ -109,16 +118,24 @@ const jsonLd = {
         </aside>
       )
     }
-    {claveSerie && <UbicacionSerie serie={claveSerie} idioma={idioma} actual={articulo.id} modo="pie" />}
     {
       claveSerie && (
-        <aside class="serie" data-pagefind-ignore>
-          <p class="rotulo">
-            {ts.mapa} · {(serie ?? padre!.data.serie)!.nombre}
-            <a class="ver" href={urlSerie(claveSerie, idioma)}>{ts.abrirMapa} →</a>
-          </p>
-          <MapaSerie serie={claveSerie} idioma={idioma} actual={articulo.id} leyenda />
-        </aside>
+        <details class="mapa-desplegable" data-pagefind-ignore>
+          <summary>
+            <span class="mapa-titulo">
+              {ts.mapa} · {(serie ?? padre!.data.serie)!.nombre}
+            </span>
+            <span class="mapa-cuenta">
+              {disponiblesSerie} {ts.de} {partesSerie.length} {ts.disponibles}
+            </span>
+          </summary>
+          <div class="mapa-cuerpo">
+            <MapaSerie serie={claveSerie} idioma={idioma} actual={articulo.id} leyenda />
+            <p class="mapa-ver">
+              <a href={urlSerie(claveSerie, idioma)}>{ts.abrirMapa} →</a>
+            </p>
+          </div>
+        </details>
       )
     }
     <footer class="cierre" data-pagefind-ignore>
@@ -133,7 +150,10 @@ const jsonLd = {
         {AUTHOR.linkedin && <><a href={AUTHOR.linkedin}>{t.sigueme}</a> {t.o} </>}
         {t.suscribete} <a href={rutas.rss}>RSS</a>.
       </p>
-      <p><a href={rutas.diario}>{t.volver}</a></p>
+      <div class="cierre-acciones">
+        <a href={rutas.diario}>{t.volver}</a>
+        <button class="copiar-enlace" type="button" data-copiar-url={url} data-texto={t.compartir} data-ok={t.compartido}>{t.compartir}</button>
+      </div>
     </footer>
   </article>
 </Base>
@@ -155,6 +175,24 @@ const jsonLd = {
     addEventListener("resize", medir);
     medir();
   }
+
+  // Botón de copiar enlace del artículo para compartirlo rápido.
+  const copiarUrl = document.querySelector<HTMLButtonElement>("[data-copiar-url]");
+  let timerCopiar: number | undefined;
+  copiarUrl?.addEventListener("click", async () => {
+    const destino = copiarUrl.dataset.copiarUrl;
+    if (!destino) return;
+    try {
+      await navigator.clipboard.writeText(destino);
+      copiarUrl.textContent = copiarUrl.dataset.ok ?? "";
+      copiarUrl.dataset.copiado = "";
+      clearTimeout(timerCopiar);
+      timerCopiar = window.setTimeout(() => {
+        copiarUrl.textContent = copiarUrl.dataset.texto ?? "";
+        delete copiarUrl.dataset.copiado;
+      }, 1600);
+    } catch {}
+  });
 </script>
 
 <style>
@@ -178,7 +216,7 @@ const jsonLd = {
     padding: 24px var(--gutter) 0;
   }
   .encabezado {
-    margin-bottom: 40px;
+    margin-block-end: 24px;
   }
   .encabezado .rotulo a {
     color: inherit;
@@ -234,7 +272,7 @@ const jsonLd = {
     border-radius: 5px;
     background: var(--code-bg);
     color: var(--strong);
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
   .prosa :global(blockquote) {
     margin: 1.8em 0;
@@ -267,19 +305,16 @@ const jsonLd = {
   }
 
   .ramas {
-    margin-top: 48px;
-    padding: 18px 22px;
+    margin-block-start: 24px;
+    padding: 16px 20px;
     border: 1px solid var(--line);
+    border-inline-start: 3px dashed var(--line-strong);
     border-radius: var(--radius);
     background: var(--surface);
   }
   .ramas .rotulo {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
     color: var(--accent);
-  }
-  .ramas p {
-    margin: 0 0 10px;
-    font-size: 15.5px;
   }
   .ramas ul {
     margin: 0;
@@ -290,7 +325,7 @@ const jsonLd = {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 8px 0;
+    padding: 9px 0;
     border-top: 1px solid var(--line);
   }
   .ramas li a {
@@ -298,33 +333,88 @@ const jsonLd = {
   }
   .ramas .avance-rama {
     color: var(--muted);
-    font: 500 12px/1 var(--font-mono);
+    font: 500 12px / 1 var(--font-mono);
     font-style: normal;
     text-transform: uppercase;
   }
   .ramas li span {
     color: var(--muted);
     font-size: 14.5px;
+    line-height: 1.5;
   }
 
-  .serie {
-    margin-top: 32px;
-    padding: 20px 24px 22px;
+  .mapa-desplegable {
+    margin-block-start: 20px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--surface);
   }
-  .serie .rotulo {
+  .mapa-desplegable summary {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 4px 16px;
-    margin: 0 0 18px;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 14px 20px;
+    cursor: pointer;
+    list-style: none;
+    color: var(--strong);
+  }
+  .mapa-desplegable summary::-webkit-details-marker {
+    display: none;
+  }
+  .mapa-desplegable summary::before {
+    content: "";
+    inline-size: 6px;
+    block-size: 6px;
+    flex-shrink: 0;
+    border-inline-end: 1.75px solid var(--accent);
+    border-block-end: 1.75px solid var(--accent);
+    rotate: -45deg;
+  }
+  .mapa-desplegable[open] > summary::before {
+    rotate: 45deg;
+  }
+  .mapa-titulo {
+    font: 600 12.5px / 1.4 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--accent);
   }
-  .serie .ver {
-    text-transform: none;
-    letter-spacing: 0;
+  .mapa-cuenta {
+    margin-inline-start: auto;
+    padding: 2px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font: 500 11.5px / 1.6 var(--font-mono);
+    color: var(--muted);
+  }
+  .mapa-desplegable::details-content {
+    interpolate-size: allow-keywords;
+    overflow: clip;
+    contain: layout;
+  }
+  .mapa-desplegable:not([open])::details-content {
+    block-size: 0;
+  }
+  .mapa-cuerpo {
+    padding: 4px 20px 20px;
+    border-top: 1px solid var(--line);
+  }
+  .mapa-ver {
+    margin: 18px 0 0;
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mapa-desplegable summary::before {
+      transition: rotate 0.2s var(--ease);
+    }
+    .mapa-desplegable::details-content {
+      transition: block-size, content-visibility, display;
+      transition-duration: 0.3s;
+      transition-timing-function: var(--ease);
+      transition-behavior: allow-discrete;
+    }
   }
 
   .cierre {
@@ -347,5 +437,32 @@ const jsonLd = {
     background: var(--accent-soft);
     color: var(--accent);
     font: 500 13px/1.8 var(--font-mono);
+  }
+  .cierre-acciones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block-start: 16px;
+  }
+  .copiar-enlace {
+    min-block-size: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--strong);
+    font: 500 13.5px / 1 var(--font-sans);
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+  .copiar-enlace:hover {
+    border-color: var(--line-strong);
+    color: var(--accent);
+  }
+  .copiar-enlace[data-copiado] {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 </style>

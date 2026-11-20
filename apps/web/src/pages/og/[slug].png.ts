@@ -40,7 +40,7 @@ export const GET: APIRoute = async ({ props }) => {
   // La escena se rasteriza primero (satori solo acepta imágenes ya listas) con los colores del tema oscuro
   // Lleva incluido un velo a la izquierda para que el título se lea encima.
   const velo = `<defs><linearGradient id="velo"><stop offset="0.3" stop-color="${TINTA}"/><stop offset="0.62" stop-color="${TINTA}" stop-opacity="0"/></linearGradient></defs><rect width="1200" height="630" fill="url(#velo)"/>`;
-  const escena = portadaCompleta(id, { p: BANANA, p2: "#8a8566" })?.replace(/^(<svg[^>]*>)/, `$1<rect width="1200" height="630" fill="${TINTA}"/>`).replace("</svg>", `${velo}</svg>`);
+  const escena = portadaCompleta(id, { p: BANANA, p2: "#8a8566", a: "#ffe27a" })?.replace(/^(<svg[^>]*>)/, `$1<rect width="1200" height="630" fill="${TINTA}"/>`).replace("</svg>", `${velo}</svg>`);
   const fondo = escena && `data:image/png;base64,${Buffer.from(new Resvg(escena, { fitTo: { mode: "width", value: 1200 } }).render().asPng()).toString("base64")}`;
   const ancho = fondo ? 640 : 960;
   const serie = data.serie ? `${data.serie.nombre} · ${String(data.serie.orden).padStart(2, "0")}` : UI[data.idioma].nav.diario;

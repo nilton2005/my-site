@@ -15,11 +15,15 @@ interface Props {
   compacta?: boolean;
   /** Muestra la explicación de qué es cada cosa del dibujo. */
   leyenda?: boolean;
+  /** Oculta las partes en estado «proximamente» (útil en la portada para evitar ruido). */
+  soloActivas?: boolean;
 }
 
-const { serie, idioma, actual, compacta = false, leyenda = false } = Astro.props;
+const { serie, idioma, actual, compacta = false, leyenda = false, soloActivas = false } = Astro.props;
 const t = UI[idioma].serie;
-const partes = await resolverSerie(serie, idioma);
+const todas = await resolverSerie(serie, idioma);
+const partes = soloActivas ? todas.filter((p) => p.estado !== "proximamente") : todas;
+const pendientes = soloActivas ? todas.length - partes.length : 0;
 
 const esActual = (i: ItemSerie) => !!actual && i.id === actual;
 const activa = (p: ParteResuelta) => esActual(p) || p.ramas.some(esActual);
@@ -76,6 +80,7 @@ const ramaViva = (p: ParteResuelta) => (p.ramas.some((r) => r.estado === "public
       ))
     }
   </ol>
+  {pendientes > 0 && <p class="pendientes-resumen">+ {pendientes} {t.enCamino}</p>}
 </div>
 
 <style>
@@ -364,5 +369,10 @@ const ramaViva = (p: ParteResuelta) => (p.ramas.some((r) => r.estado === "public
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+  .pendientes-resumen {
+    margin: 8px 0 0 42px;
+    color: var(--muted);
+    font: 500 12.5px / 1.4 var(--font-mono);
   }
 </style>

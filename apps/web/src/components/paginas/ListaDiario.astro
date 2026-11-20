@@ -3,39 +3,366 @@ import Base from "../../layouts/Base.astro";
 import TarjetaArticulo from "../TarjetaArticulo.astro";
 import { SITE } from "../../config";
 import { idiomaDe, otroIdioma, RUTAS, UI } from "../../i18n";
-import { getArticulos } from "../../lib/diario";
+import { getArticulos, minutosDeLectura } from "../../lib/diario";
+import { resolverSerie } from "../../lib/serie";
+import { SERIES, urlSerie } from "../../series";
 
 const idioma = idiomaDe(Astro.currentLocale);
 const t = UI[idioma].diario;
+const ti = UI[idioma].inicio;
+const ta = UI[idioma].articulo;
+const ts = UI[idioma].serie;
+
 const articulos = await getArticulos(idioma);
+const porId = new Map(articulos.map((a) => [a.id, a]));
+const publicados = articulos.filter((a) => !a.data.avance);
+const principales = publicados.filter((a) => !a.data.rama);
+const subarticulos = publicados.filter((a) => !!a.data.rama);
+const totalFiguras = Object.keys(import.meta.glob("../figuras/*.astro")).length;
+
+// Resolvemos cada serie en orden de lectura y registramos sus IDs para no duplicarlos en «Otros artículos».
+const idsEnSerie = new Set<string>();
+const seriesResueltas = await Promise.all(
+  Object.entries(SERIES).map(async ([clave, serie]) => {
+    const partes = await resolverSerie(clave, idioma);
+    for (const p of partes) {
+      if (p.id) idsEnSerie.add(p.id);
+      for (const r of p.ramas) if (r.id) idsEnSerie.add(r.id);
+    }
+    return {
+      clave,
+      nombre: serie.nombre[idioma],
+      hilo: serie.hilo[idioma],
+      url: urlSerie(clave, idioma),
+      activas: partes.filter((p) => p.estado !== "proximamente"),
+      proximas: partes.filter((p) => p.estado === "proximamente"),
+      total: partes.length,
+    };
+  })
+);
+const sueltos = articulos.filter((a) => !idsEnSerie.has(a.id) && !a.data.rama);
+const num = (n: number) => String(n).padStart(2, "0");
 ---
 
 <Base title={`${UI[idioma].nav.diario} · ${SITE.name}`} description={t.descripcion} alternate={RUTAS[otroIdioma(idioma)].diario}>
-  <section class="contenedor">
+  <section class="contenedor cabecera-diario">
     <p class="rotulo">{UI[idioma].nav.diario}</p>
     <h1>{t.titulo}</h1>
     <p class="entrada">{t.entrada}</p>
-    <div class="rejilla">
-      {articulos.map((articulo) => <TarjetaArticulo articulo={articulo} />)}
-    </div>
+    <p class="resumen-meta">
+      <span>{principales.length} {principales.length === 1 ? ti.articulo : ti.articulos}</span>
+      {
+        subarticulos.length > 0 && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>{subarticulos.length} {subarticulos.length === 1 ? ta.profundizarUno : ta.profundizarVarios}</span>
+          </>
+        )
+      }
+      <span aria-hidden="true">·</span>
+      <span>{totalFiguras} {totalFiguras === 1 ? ti.figura : ti.figuras}</span>
+    </p>
   </section>
+
+  {
+    seriesResueltas.map((s) => (
+      <section class="contenedor bloque-serie" aria-labelledby={`serie-${s.clave}`}>
+        <div class="serie-cabecera">
+          <div>
+            <p class="rotulo">{t.empieza}</p>
+            <h2 id={`serie-${s.clave}`}>
+              <a href={s.url}>{s.nombre}</a>
+            </h2>
+            <p class="serie-hilo">{s.hilo}</p>
+          </div>
+          <a class="mapa-cta" href={s.url}>
+            {ts.abrirMapa} →
+          </a>
+        </div>
+
+        <ol class="partes">
+          {s.activas.map((p) => {
+            const art = p.id ? porId.get(p.id) : undefined;
+            const mins = art ? minutosDeLectura(art.body) : 0;
+            const ramasVisibles = p.ramas.filter((r) => r.url);
+            return (
+              <li class="parte-grupo">
+                <article class="tarjeta-parte">
+                  <p class="meta-parte">
+                    <span class="num">{ts.parte} {num(p.orden)}</span>
+                    {mins > 0 && <><span aria-hidden="true">·</span><span>{mins} {ta.lectura}</span></>}
+                    {
+                      ramasVisibles.length > 0 && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>+{ramasVisibles.length} {ramasVisibles.length === 1 ? ta.profundizarUno : ta.profundizarVarios}</span>
+                        </>
+                      )
+                    }
+                    {p.estado === "avance" && <span class="badge">{ts.avance}</span>}
+                  </p>
+                  <h3>
+                    {p.url ? <a href={p.url}>{p.titulo}</a> : p.titulo}
+                  </h3>
+                  <p class="descripcion">{art?.data.descripcion ?? p.hilo}</p>
+                </article>
+              </li>
+            );
+          })}
+        </ol>
+
+        {s.proximas.length > 0 && (
+          <details class="proximas">
+            <summary>
+              <span>{s.proximas.length} {ts.proximasPartes}</span>
+            </summary>
+            <ol class="lista-proximas">
+              {s.proximas.map((p) => (
+                <li>
+                  <span class="num">{num(p.orden)}</span>
+                  <div>
+                    <strong>{p.titulo}</strong>
+                    <p>{p.hilo}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+      </section>
+    ))
+  }
+
+  {
+    sueltos.length > 0 && (
+      <section class="contenedor bloque-sueltos">
+        <p class="rotulo">{t.sueltos}</p>
+        <div class="rejilla">
+          {sueltos.map((articulo) => <TarjetaArticulo articulo={articulo} />)}
+        </div>
+      </section>
+    )
+  }
 </Base>
 
 <style>
-  section {
-    padding-top: clamp(24px, 6vw, 64px);
+  .cabecera-diario {
+    padding-block-start: clamp(24px, 6vw, 56px);
+    padding-block-end: 28px;
   }
   h1 {
     margin: 8px 0 14px;
     font-size: clamp(2rem, 6vw, 3rem);
   }
   .entrada {
-    max-width: 60ch;
-    margin: 0 0 40px;
-    font-size: 1.1rem;
+    max-inline-size: 60ch;
+    margin: 0 0 16px;
+    font-size: 1.08rem;
+  }
+  .resumen-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    font: 500 13px / 1.5 var(--font-mono);
+    color: var(--muted);
+  }
+
+  .bloque-serie {
+    padding-block-start: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .serie-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+    margin-block-end: 22px;
+  }
+  .serie-cabecera .rotulo {
+    margin: 0 0 4px;
+    color: var(--accent);
+  }
+  .serie-cabecera h2 {
+    margin: 0 0 6px;
+    font-size: clamp(1.45rem, 3.5vw, 1.85rem);
+  }
+  .serie-cabecera h2 a {
+    text-decoration: none;
+  }
+  .serie-hilo {
+    max-inline-size: 58ch;
+    margin: 0;
+    font-size: 15.5px;
+    color: var(--text);
+  }
+  .mapa-cta {
+    font: 600 14px / 1.4 var(--font-sans);
+    white-space: nowrap;
+  }
+
+  .partes {
+    display: grid;
+    gap: 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tarjeta-parte {
+    position: relative;
+    padding: 20px 24px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: translate 0.2s var(--ease), border-color 0.2s var(--ease);
+  }
+  .tarjeta-parte:hover {
+    translate: 0 -2px;
+    border-color: var(--line-strong);
+  }
+  .meta-parte {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    font: 500 12px / 1.4 var(--font-mono);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-parte .num {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .badge {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+  }
+  .tarjeta-parte h3 {
+    margin: 0 0 6px;
+    font-size: 1.3rem;
+  }
+  .tarjeta-parte h3 a {
+    text-decoration: none;
+  }
+  .tarjeta-parte h3 a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .descripcion {
+    margin: 0;
+    font-size: 15.5px;
+    color: var(--text);
+  }
+
+  /* Partes planeadas colapsadas para no llenar la pantalla de ítems sin clic */
+  .proximas {
+    margin-block-start: 20px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+  }
+  .proximas summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    cursor: pointer;
+    list-style: none;
+    font: 600 13px / 1.4 var(--font-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .proximas summary:hover {
+    color: var(--strong);
+  }
+  .proximas summary::-webkit-details-marker {
+    display: none;
+  }
+  .proximas summary::before {
+    content: "";
+    inline-size: 6px;
+    block-size: 6px;
+    flex-shrink: 0;
+    border-inline-end: 1.75px solid currentColor;
+    border-block-end: 1.75px solid currentColor;
+    rotate: -45deg;
+  }
+  .proximas[open] > summary::before {
+    rotate: 45deg;
+  }
+  .proximas::details-content {
+    interpolate-size: allow-keywords;
+    overflow: clip;
+    contain: layout;
+  }
+  .proximas:not([open])::details-content {
+    block-size: 0;
+  }
+  .lista-proximas {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 12px 18px 18px;
+    border-top: 1px dashed var(--line);
+    list-style: none;
+  }
+  .lista-proximas li {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .lista-proximas .num {
+    font: 600 12px / 1.4 var(--font-mono);
+    color: var(--muted);
+  }
+  .lista-proximas strong {
+    display: block;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .lista-proximas p {
+    margin: 2px 0 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .bloque-sueltos {
+    margin-block-start: 40px;
+    padding-block-start: 28px;
+    border-top: 1px solid var(--line);
   }
   .rejilla {
     display: grid;
     gap: 16px;
+    margin-block-start: 14px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .proximas summary::before {
+      transition: rotate 0.2s var(--ease);
+    }
+    .proximas::details-content {
+      transition: block-size, content-visibility, display;
+      transition-duration: 0.3s;
+      transition-timing-function: var(--ease);
+      transition-behavior: allow-discrete;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tarjeta-parte:hover {
+      translate: none;
+    }
   }
 </style>

@@ -16,15 +16,61 @@ const svg = portadaBanner(Astro.props.id);
 
 <style>
   .portada-articulo {
-    width: min(var(--wide), 100%);
-    margin: 4px auto 8px;
-    padding: 0 var(--gutter);
+    position: relative;
+    isolation: isolate;
+    margin-block: 4px 32px;
+    inline-size: 100%;
+  }
+  .portada-articulo::before {
+    content: "";
+    position: absolute;
+    inset: 4% 8%;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--brand) 14%, transparent) 0%,
+      color-mix(in srgb, var(--brand) 4%, transparent) 55%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
+  :global(:root[data-theme="dark"]) .portada-articulo::before {
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--brand) 10%, transparent) 0%,
+      color-mix(in srgb, var(--brand) 3%, transparent) 56%,
+      transparent 100%
+    );
   }
   .portada-articulo :global(svg) {
     display: block;
-    width: 100%;
-    height: auto;
-    /* El borde izquierdo se funde con la página, como si la escena saliera de ella */
-    mask-image: linear-gradient(to right, transparent, #000 14%, #000 92%, transparent);
+    inline-size: 100%;
+    block-size: auto;
+    max-block-size: clamp(220px, 42vw, 340px);
+    /* Los cuatro bordes se funden con la página, igual que el mono de la portada */
+    mask-image:
+      linear-gradient(to right, transparent, #000 10%, #000 92%, transparent),
+      linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+    mask-composite: intersect;
+    -webkit-mask-image:
+      linear-gradient(to right, transparent, #000 10%, #000 92%, transparent),
+      linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-composite: source-in;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .portada-articulo {
+      animation: entrar-portada 0.55s var(--ease) both;
+    }
+  }
+  @keyframes entrar-portada {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
   }
 </style>
